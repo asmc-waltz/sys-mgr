@@ -1,4 +1,3 @@
-// sender.c
 #include <dbus/dbus.h>
 #include <stdio.h>
 #include <stdlib.h>
