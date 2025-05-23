@@ -1,95 +1,88 @@
 #include <dbus/dbus.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
-// #include <time.h>
-#include <sys/time.h>
+#define SERVICE_NAME "com.example.DBusService"
+#define OBJECT_PATH "/com/example/Service"
+#define INTERFACE_NAME "com.example.Interface"
 
-void send_message() {
-    DBusError err;
-    DBusConnection* conn;
+void send_method_call(DBusConnection* conn) {
+    DBusMessage *msg;
+    DBusMessageIter args;
+    DBusPendingCall *pending;
+
+    msg = dbus_message_new_method_call(SERVICE_NAME, OBJECT_PATH, INTERFACE_NAME, "TestMethod");
+    dbus_message_iter_init_append(msg, &args);
+
+    const char *str = "Hello from client!";
+    int num = 123;
+    dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &str);
+    dbus_message_iter_append_basic(&args, DBUS_TYPE_INT32, &num);
+
+    if (!dbus_connection_send_with_reply(conn, msg, &pending, -1)) {
+        fprintf(stderr, "Out of memory!\n");
+        exit(1);
+    }
+
+    dbus_connection_flush(conn);
+    dbus_message_unref(msg);
+
+    dbus_pending_call_block(pending);
+
+    DBusMessage *reply = dbus_pending_call_steal_reply(pending);
+    dbus_pending_call_unref(pending);
+
+    if (reply) {
+        DBusMessageIter reply_args;
+        if (dbus_message_iter_init(reply, &reply_args)) {
+            char *reply_str;
+            dbus_message_iter_get_basic(&reply_args, &reply_str);
+            printf("Method call reply: %s\n", reply_str);
+        }
+        dbus_message_unref(reply);
+    }
+}
+
+void send_signal(DBusConnection* conn) {
     DBusMessage* msg;
-    DBusMessageIter args, dict, entry;
-    dbus_uint32_t serial = 0;
+    DBusMessageIter args;
 
-    dbus_error_init(&err);
-
-    conn = dbus_bus_get(DBUS_BUS_SYSTEM, &err);
-    if (dbus_error_is_set(&err)) { fprintf(stderr, "Connection Error (%s)\n", err.message); dbus_error_free(&err); }
-
-    if (!conn) { exit(1); }
-
-    msg = dbus_message_new_method_call("org.example.Receiver",
-                                       "/org/example/Receiver",
-                                       "org.example.Receiver",
-                                       "ReceiveData");
+    msg = dbus_message_new_signal(OBJECT_PATH, INTERFACE_NAME, "TestSignal");
 
     dbus_message_iter_init_append(msg, &args);
 
-    dbus_message_iter_open_container(&args, DBUS_TYPE_ARRAY, "{sv}", &dict);
+    const char* signal_msg = "This is a signal!";
+    dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &signal_msg);
 
-    // Add string entry
-    dbus_message_iter_open_container(&dict, DBUS_TYPE_DICT_ENTRY, NULL, &entry);
-    const char* key1 = "name";
-    dbus_message_iter_append_basic(&entry, DBUS_TYPE_STRING, &key1);
-    DBusMessageIter variant1;
-    dbus_message_iter_open_container(&entry, DBUS_TYPE_VARIANT, "s", &variant1);
-    const char* value1 = "Sensor A";
-    dbus_message_iter_append_basic(&variant1, DBUS_TYPE_STRING, &value1);
-    dbus_message_iter_close_container(&entry, &variant1);
-    dbus_message_iter_close_container(&dict, &entry);
-
-    // Add boolean entry
-    dbus_message_iter_open_container(&dict, DBUS_TYPE_DICT_ENTRY, NULL, &entry);
-    const char* key2 = "active";
-    dbus_message_iter_append_basic(&entry, DBUS_TYPE_STRING, &key2);
-    DBusMessageIter variant2;
-    dbus_message_iter_open_container(&entry, DBUS_TYPE_VARIANT, "b", &variant2);
-    dbus_bool_t value2 = TRUE;
-    dbus_message_iter_append_basic(&variant2, DBUS_TYPE_BOOLEAN, &value2);
-    dbus_message_iter_close_container(&entry, &variant2);
-    dbus_message_iter_close_container(&dict, &entry);
-
-    dbus_message_iter_close_container(&args, &dict);
-
-    // Send
-    if (!dbus_connection_send(conn, msg, &serial)) {
-        fprintf(stderr, "Out Of Memory!\n");
+    if (!dbus_connection_send(conn, msg, NULL)) {
+        fprintf(stderr, "Out of memory!\n");
         exit(1);
     }
+
     dbus_connection_flush(conn);
-    printf("Message sent with serial %d\n", serial);
-
     dbus_message_unref(msg);
-
-
-    // TIME
-    // time_t t;
-    // struct tm *tm_info;
-    //
-    // // Lấy thời gian hiện tại
-    // time(&t);
-    //
-    // // Chuyển thành dạng cấu trúc thời gian địa phương
-    // tm_info = localtime(&t);
-    //
-    // // In ra thời gian theo định dạng chuẩn: YYYY-MM-DD HH:MM:SS
-    // printf("Current time: %04d-%02d-%02d %02d:%02d:%02d\n",
-    //     tm_info->tm_year + 1900,
-    //     tm_info->tm_mon + 1,
-    //     tm_info->tm_mday,
-    //     tm_info->tm_hour,
-    //     tm_info->tm_min,
-    //     tm_info->tm_sec
-    // );
-
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    printf("Current time: %ld.%06ld seconds since the Epoch\n", tv.tv_sec, tv.tv_usec);
-
+    printf("Signal sent.\n");
 }
 
-int main() {
-    send_message();
+int main(int argc, char** argv) {
+    DBusError err;
+    DBusConnection* conn;
+
+    dbus_error_init(&err);
+    conn = dbus_bus_get(DBUS_BUS_SYSTEM, &err);
+
+    if (dbus_error_is_set(&err)) {
+        fprintf(stderr, "Connection Error (%s)\n", err.message);
+        dbus_error_free(&err);
+    }
+
+    if (!conn) exit(1);
+
+    if (argc > 1 && strcmp(argv[1], "signal") == 0)
+        send_signal(conn);
+    else
+        send_method_call(conn);
+
     return 0;
 }
