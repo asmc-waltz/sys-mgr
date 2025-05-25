@@ -99,7 +99,7 @@ DBusConnection * setup_dbus()
     return conn;
 }
 
-void* listen_thread(void* arg) {
+void* dbus_listen_thread(void* arg) {
     DBusConnection *conn = (DBusConnection*)arg;
     DBusMessage *msg;
 

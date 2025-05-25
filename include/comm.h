@@ -6,6 +6,7 @@
 #ifndef G_COMM_H
 #define G_COMM_H
 
+#include <stdint.h>
 #include <dbus/dbus.h>
 
 #define SERVICE_NAME "com.example.DBusService"
@@ -17,6 +18,6 @@ void event_set(int evfd, uint64_t code);
 uint64_t event_get(int evfd);
 
 DBusConnection * setup_dbus();
-void* listen_thread(void* arg);
+void* dbus_listen_thread(void* arg);
 
 #endif /* G_COMM_H */

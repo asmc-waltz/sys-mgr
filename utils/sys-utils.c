@@ -3,9 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define SERVICE_NAME "com.example.DBusService"
-#define OBJECT_PATH "/com/example/Service"
-#define INTERFACE_NAME "com.example.Interface"
+#include <comm.h>
 
 void send_method_call(DBusConnection* conn) {
     DBusMessage *msg;

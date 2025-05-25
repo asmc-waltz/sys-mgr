@@ -1,3 +1,5 @@
+#include <unistd.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <sys/eventfd.h>
 

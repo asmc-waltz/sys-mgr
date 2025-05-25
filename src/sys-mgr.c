@@ -84,7 +84,7 @@ int main() {
     init_event_file();
 
     // This thread processes DBus messages for the system manager
-    pthread_create(&dbus_listener, NULL, listen_thread, conn);
+    pthread_create(&dbus_listener, NULL, dbus_listen_thread, conn);
 
     // System manager's primary tasks are executed within a loop
     ret = sys_mgr_work_cycle();
