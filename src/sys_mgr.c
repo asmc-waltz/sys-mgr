@@ -56,25 +56,11 @@ int setup_signal_handler()
     return 0;
 }
 
-int sys_mgr_work_cycle()
+int main_loop()
 {
-    work_t *w = NULL;
-
     printf("System manager service is running...\n");
     while (g_run) {
         usleep(200000);
-        printf("System manager walking cycle...\n");
-        w = pop_work_wait();
-        if (w == NULL) {
-            printf("Worker is exiting...\n");
-            break;
-        }
-        printf("Main loop: received work opcode=%d, data=%s\n", w->opcode, w->data);
-
-        sleep(1);
-        printf("Main loop: work done: %s\n\n", w->data);
-
-        free(w);
     };
 
     printf("System manager service is exiting...\n");
@@ -84,6 +70,7 @@ int sys_mgr_work_cycle()
 int main() {
     DBusConnection *conn;
     pthread_t dbus_listener;
+    pthread_t task_handler;
     int ret = 0;
 
     if (setup_signal_handler()) {
@@ -96,19 +83,31 @@ int main() {
         return -1;
     }
 
+    ret = pthread_create(&task_handler, NULL, main_task_handler, NULL);
+    if (ret) {
+        printf("Failed to create worker thread: %s\n", strerror(ret));
+        exit(1);
+    }
+
     // Prepare eventfd to notify epoll when communicating with a thread
     init_event_file();
 
     // This thread processes DBus messages for the system manager
-    pthread_create(&dbus_listener, NULL, dbus_listen_thread, conn);
+    ret = pthread_create(&dbus_listener, NULL, dbus_listen_thread, conn);
+    if (ret) {
+        printf("Failed to create DBus listen thread: %s\n", strerror(ret));
+        exit(1);
+    }
 
     // System manager's primary tasks are executed within a loop
-    ret = sys_mgr_work_cycle();
+    ret = main_loop();
     if (ret) {
         event_set(event_fd, SIGUSR1);
+        workqueue_stop();
     }
 
     pthread_join(dbus_listener, NULL);
+    pthread_join(task_handler, NULL);
 
     close(event_fd);
     printf("All services stopped. Safe exit.\n");
