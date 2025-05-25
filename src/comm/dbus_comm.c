@@ -98,7 +98,7 @@ DBusConnection * setup_dbus()
     }
     sprintf(match_rule,
         "type='signal',interface='%s',member='%s',path='%s'",
-        "com.TerminalUI.Interface", "UISig", "/com/TerminalUI/Obj/UsrCmd");
+        UI_DBUS_IFACE, UI_DBUS_SIG, UI_DBUS_OBJ_PATH);
 
     ret = add_dbus_match_rule(conn, match_rule);
     if (ret) {
@@ -164,7 +164,6 @@ void* dbus_listen_thread(void* arg) {
                     if (dbus_message_is_method_call(msg, \
                                                     SYS_MGR_DBUS_IFACE, \
                                                     SYS_MGR_DBUS_METH)) {
-                        printf("    METHOD\n");
                         print_message(msg);
                         DBusMessage *reply;
                         DBusMessageIter args;
@@ -174,8 +173,9 @@ void* dbus_listen_thread(void* arg) {
                         dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &reply_str);
                         dbus_connection_send(conn, reply, NULL);
                         dbus_message_unref(reply);
-                    } else if (dbus_message_is_signal(msg, "com.TerminalUI.Interface", "UISig")) {
-                        printf("    SIGNAL\n");
+                    } else if (dbus_message_is_signal(msg, \
+                                                      UI_DBUS_IFACE, \
+                                                      UI_DBUS_SIG)) {
                         print_message(msg);
                     }
 
