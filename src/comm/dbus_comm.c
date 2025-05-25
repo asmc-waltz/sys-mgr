@@ -6,6 +6,7 @@
 
 #include <sys_mgr.h>
 #include <sys_comm.h>
+#include <workqueue.h>
 
 extern volatile sig_atomic_t g_run;
 extern int event_fd;
@@ -177,6 +178,13 @@ void* dbus_listen_thread(void* arg) {
                                                       UI_DBUS_IFACE, \
                                                       UI_DBUS_SIG)) {
                         print_message(msg);
+
+                            work_t *w = malloc(sizeof(work_t));
+                            w->opcode = i++;
+                            snprintf(w->data, sizeof(w->data), "Message #%d", w->opcode);
+
+                            push_work(w);
+                            printf("[DBus Thread] Pushed job %d\n", w->opcode);
                     }
 
                     dbus_message_unref(msg);

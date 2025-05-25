@@ -10,6 +10,7 @@
 
 #include <sys_mgr.h>
 #include <sys_comm.h>
+#include <workqueue.h>
 
 extern int event_fd;
 volatile sig_atomic_t g_run = 1;
@@ -58,7 +59,14 @@ int sys_mgr_work_cycle()
     printf("System manager service is running...\n");
     while (g_run) {
         usleep(200000);
-        // printf("System manager walking cycle...\n");
+        printf("System manager walking cycle...\n");
+        work_t *w = pop_work_wait();
+        printf("Main loop: received work opcode=%d, data=%s\n", w->opcode, w->data);
+
+        sleep(1);
+        printf("Main loop: work done: %s\n\n", w->data);
+
+        free(w);
     };
 
     printf("System manager is exiting...\n");
