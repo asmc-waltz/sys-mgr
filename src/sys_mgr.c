@@ -56,11 +56,17 @@ int setup_signal_handler()
 
 int sys_mgr_work_cycle()
 {
+    work_t *w = NULL;
+
     printf("System manager service is running...\n");
     while (g_run) {
         usleep(200000);
         printf("System manager walking cycle...\n");
-        work_t *w = pop_work_wait();
+        w = pop_work_wait();
+        if (w == NULL) {
+            printf("Worker is exiting...\n");
+            break;
+        }
         printf("Main loop: received work opcode=%d, data=%s\n", w->opcode, w->data);
 
         sleep(1);

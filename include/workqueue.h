@@ -21,5 +21,6 @@ typedef struct workqueue {
 
 void push_work(work_t *work);
 work_t* pop_work_wait();
+void workqueue_stop();
 
 #endif /* G_WORKQUEUE_H */

@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <errno.h>
 #include <sys/epoll.h>
 #include <signal.h>
@@ -196,6 +197,7 @@ void* dbus_listen_thread(void* arg) {
                 printf("Received event ID [%lld], stopping DBus listener...\n", \
                        event_get(event_fd));
                 g_run = 0;
+                workqueue_stop();
             }
         }
     }
