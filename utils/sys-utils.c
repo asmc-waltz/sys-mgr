@@ -3,14 +3,25 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <comm.h>
+#include <sys_comm.h>
+
+#define UI_DBUS_SER                     "com.TerminalUI.Service"
+#define UI_DBUS_OBJ_PATH                "/com/TerminalUI/Obj/UsrCmd"
+#define UI_DBUS_IFACE                   "com.TerminalUI.Interface"
+#define UI_DBUS_SIG                     "UISig"
 
 void send_method_call(DBusConnection* conn) {
     DBusMessage *msg;
     DBusMessageIter args;
     DBusPendingCall *pending;
 
-    msg = dbus_message_new_method_call(SERVICE_NAME, OBJECT_PATH, INTERFACE_NAME, "TestMethod");
+    msg = dbus_message_new_method_call(SYS_MGR_DBUS_SER, \
+                                       SYS_MGR_DBUS_OBJ_PATH, \
+                                       SYS_MGR_DBUS_IFACE, \
+                                       SYS_MGR_DBUS_METH);
+
+
+
     dbus_message_iter_init_append(msg, &args);
 
     const char *str = "Hello from client!";
@@ -46,7 +57,9 @@ void send_signal(DBusConnection* conn) {
     DBusMessage* msg;
     DBusMessageIter args;
 
-    msg = dbus_message_new_signal("/com/TerminalUI/Obj/UsrCmd", "com.TerminalUI.Interface", "TestSignal");
+    msg = dbus_message_new_signal(UI_DBUS_OBJ_PATH, \
+                                  UI_DBUS_IFACE, \
+                                  UI_DBUS_SIG);
 
     dbus_message_iter_init_append(msg, &args);
 
@@ -78,7 +91,10 @@ int main(int argc, char** argv) {
 
     if (!conn) exit(1);
 
-    ret = dbus_bus_request_name(conn, "com.TerminalUI.Service", DBUS_NAME_FLAG_REPLACE_EXISTING, &err);
+    ret = dbus_bus_request_name(conn, \
+                                UI_DBUS_SER, \
+                                DBUS_NAME_FLAG_REPLACE_EXISTING, \
+                                &err);
     if (dbus_error_is_set(&err)) {
         fprintf(stderr, "Dbus request name error: %s\n", err.message);
         dbus_error_free(&err);

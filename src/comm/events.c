@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <sys/eventfd.h>
 
-#include <comm.h>
+#include <sys_comm.h>
 
 int event_fd;
 

@@ -8,8 +8,8 @@
 #include <sys/epoll.h>
 #include <dbus/dbus.h>
 
-#include <sys-mgr.h>
-#include <comm.h>
+#include <sys_mgr.h>
+#include <sys_comm.h>
 
 extern int event_fd;
 volatile sig_atomic_t g_run = 1;

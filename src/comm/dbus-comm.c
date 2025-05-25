@@ -4,8 +4,8 @@
 #include <signal.h>
 #include <sys/eventfd.h>
 
-#include <sys-mgr.h>
-#include <comm.h>
+#include <sys_mgr.h>
+#include <sys_comm.h>
 
 extern volatile sig_atomic_t g_run;
 extern int event_fd;
@@ -78,7 +78,10 @@ DBusConnection * setup_dbus()
         return NULL;
     }
 
-    ret = dbus_bus_request_name(conn, SERVICE_NAME, DBUS_NAME_FLAG_REPLACE_EXISTING, &err);
+    ret = dbus_bus_request_name(conn, \
+                                SYS_MGR_DBUS_SER, \
+                                DBUS_NAME_FLAG_REPLACE_EXISTING, \
+                                &err);
     if (dbus_error_is_set(&err)) {
         fprintf(stderr, "Dbus request name error: %s\n", err.message);
         dbus_error_free(&err);
@@ -88,9 +91,6 @@ DBusConnection * setup_dbus()
         return NULL;
     }
 
-    // const char *match_rule = "type='signal',interface='com.go001.SystemManager'";
-    // const char* match_rule = "type='signal',interface='com.go001.TerminalUI',member='TestSignal',path='/com/go001/TerminalUI/user'";
-    //
     char* match_rule = (char*)calloc(256, sizeof(char));
     if (!match_rule) {
         printf("Failed to allocate memory\n");
@@ -98,7 +98,7 @@ DBusConnection * setup_dbus()
     }
     sprintf(match_rule,
         "type='signal',interface='%s',member='%s',path='%s'",
-        "com.TerminalUI.Interface", "TestSignal", "/com/TerminalUI/Obj/UsrCmd");
+        "com.TerminalUI.Interface", "UISig", "/com/TerminalUI/Obj/UsrCmd");
 
     ret = add_dbus_match_rule(conn, match_rule);
     if (ret) {
@@ -161,7 +161,9 @@ void* dbus_listen_thread(void* arg) {
                         continue;
                     }
 
-                    if (dbus_message_is_method_call(msg, INTERFACE_NAME, "TestMethod")) {
+                    if (dbus_message_is_method_call(msg, \
+                                                    SYS_MGR_DBUS_IFACE, \
+                                                    SYS_MGR_DBUS_METH)) {
                         printf("    METHOD\n");
                         print_message(msg);
                         DBusMessage *reply;
@@ -172,7 +174,7 @@ void* dbus_listen_thread(void* arg) {
                         dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &reply_str);
                         dbus_connection_send(conn, reply, NULL);
                         dbus_message_unref(reply);
-                    } else if (dbus_message_is_signal(msg, "com.TerminalUI.Interface", "TestSignal")) {
+                    } else if (dbus_message_is_signal(msg, "com.TerminalUI.Interface", "UISig")) {
                         printf("    SIGNAL\n");
                         print_message(msg);
                     }
