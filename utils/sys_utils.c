@@ -5,11 +5,6 @@
 
 #include <sys_comm.h>
 
-#define UI_DBUS_SER                     "com.TerminalUI.Service"
-#define UI_DBUS_OBJ_PATH                "/com/TerminalUI/Obj/UsrCmd"
-#define UI_DBUS_IFACE                   "com.TerminalUI.Interface"
-#define UI_DBUS_SIG                     "UISig"
-
 void send_method_call(DBusConnection* conn) {
     DBusMessage *msg;
     DBusMessageIter args;
