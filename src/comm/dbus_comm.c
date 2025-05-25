@@ -196,8 +196,6 @@ void* dbus_listen_thread(void* arg) {
             } else if (events[i].data.fd == event_fd) {
                 printf("Received event ID [%lld], stopping DBus listener...\n", \
                        event_get(event_fd));
-                g_run = 0;
-                workqueue_stop();
             }
         }
     }

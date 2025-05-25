@@ -19,7 +19,9 @@ void sig_handler(int sig) {
     switch (sig) {
         case SIGINT:
             printf("\n[+] Received SIGINT (Ctrl+C). Exiting...\n");
+            g_run = 0;
             event_set(event_fd, SIGINT);
+            workqueue_stop();
             break;
         case SIGTERM:
             printf("\n[+] Received SIGTERM. Shutdown...\n");
@@ -75,7 +77,7 @@ int sys_mgr_work_cycle()
         free(w);
     };
 
-    printf("System manager is exiting...\n");
+    printf("System manager service is exiting...\n");
     return 0;
 }
 
