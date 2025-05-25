@@ -9,9 +9,9 @@
 #include <stdint.h>
 #include <dbus/dbus.h>
 
-#define SERVICE_NAME "com.example.DBusService"
-#define OBJECT_PATH "/com/example/Service"
-#define INTERFACE_NAME "com.example.Interface"
+#define SERVICE_NAME "com.SystemManager.Service"
+#define OBJECT_PATH "/com/SystemManager/Obj/SysCmd"
+#define INTERFACE_NAME "com.SystemManager.Interface"
 
 int init_event_file();
 void event_set(int evfd, uint64_t code);

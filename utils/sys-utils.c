@@ -46,7 +46,7 @@ void send_signal(DBusConnection* conn) {
     DBusMessage* msg;
     DBusMessageIter args;
 
-    msg = dbus_message_new_signal(OBJECT_PATH, INTERFACE_NAME, "TestSignal");
+    msg = dbus_message_new_signal("/com/TerminalUI/Obj/UsrCmd", "com.TerminalUI.Interface", "TestSignal");
 
     dbus_message_iter_init_append(msg, &args);
 
@@ -66,6 +66,7 @@ void send_signal(DBusConnection* conn) {
 int main(int argc, char** argv) {
     DBusError err;
     DBusConnection* conn;
+    int ret = 0;
 
     dbus_error_init(&err);
     conn = dbus_bus_get(DBUS_BUS_SYSTEM, &err);
@@ -76,6 +77,16 @@ int main(int argc, char** argv) {
     }
 
     if (!conn) exit(1);
+
+    ret = dbus_bus_request_name(conn, "com.TerminalUI.Service", DBUS_NAME_FLAG_REPLACE_EXISTING, &err);
+    if (dbus_error_is_set(&err)) {
+        fprintf(stderr, "Dbus request name error: %s\n", err.message);
+        dbus_error_free(&err);
+    }
+
+    if (ret != DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER) {
+        return NULL;
+    }
 
     if (argc > 1 && strcmp(argv[1], "signal") == 0)
         send_signal(conn);

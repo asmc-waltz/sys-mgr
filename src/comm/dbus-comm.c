@@ -88,13 +88,24 @@ DBusConnection * setup_dbus()
         return NULL;
     }
 
-
-    const char *match_rule = "type='signal',interface='com.example.Interface'";
+    // const char *match_rule = "type='signal',interface='com.go001.SystemManager'";
+    // const char* match_rule = "type='signal',interface='com.go001.TerminalUI',member='TestSignal',path='/com/go001/TerminalUI/user'";
+    //
+    char* match_rule = (char*)calloc(256, sizeof(char));
+    if (!match_rule) {
+        printf("Failed to allocate memory\n");
+        return NULL;
+    }
+    sprintf(match_rule,
+        "type='signal',interface='%s',member='%s',path='%s'",
+        "com.TerminalUI.Interface", "TestSignal", "/com/TerminalUI/Obj/UsrCmd");
 
     ret = add_dbus_match_rule(conn, match_rule);
     if (ret) {
         return NULL;
     }
+
+    free(match_rule);
 
     return conn;
 }
@@ -161,7 +172,7 @@ void* dbus_listen_thread(void* arg) {
                         dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &reply_str);
                         dbus_connection_send(conn, reply, NULL);
                         dbus_message_unref(reply);
-                    } else if (dbus_message_is_signal(msg, INTERFACE_NAME, "TestSignal")) {
+                    } else if (dbus_message_is_signal(msg, "com.TerminalUI.Interface", "TestSignal")) {
                         printf("    SIGNAL\n");
                         print_message(msg);
                     }
