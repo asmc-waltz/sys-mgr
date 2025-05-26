@@ -7,6 +7,7 @@
 #define G_LOG_H
 
 #include <stdio.h>
+#include <time.h>
 
 // Define log levels
 #define LOG_LEVEL_NONE    0
@@ -105,8 +106,8 @@ static inline const char* _log_timestamp() {
 
 #if LOG_LEVEL >= LOG_LEVEL_INFO
 #define LOG_INFO(fmt, ...) \
-    fprintf(stdout, COLOR_GREEN "[INFO] [%s] [%s:%d:%s] \n\t" fmt COLOR_RESET "\n", \
-            _log_timestamp(), __FILE__, __LINE__, __func__, ##__VA_ARGS__) 
+    fprintf(stdout, COLOR_GREEN "[INFO] [%s] [%s] " fmt COLOR_RESET "\n", \
+            _log_timestamp(), __func__, ##__VA_ARGS__) 
 #else
 #define LOG_INFO(fmt, ...)
 #endif
