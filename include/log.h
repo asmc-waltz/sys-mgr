@@ -85,7 +85,7 @@ static inline const char* _log_timestamp() {
     fprintf(stderr, COLOR_RED "[FATAL] [%s] [%s:%d:%s] \n\t" fmt COLOR_RESET "\n", \
             _log_timestamp(), __FILE__, __LINE__, __func__, ##__VA_ARGS__) 
 #else
-#define LOG_ERROR(fmt, ...)
+#define LOG_FATAL(fmt, ...)
 #endif
 
 #if LOG_LEVEL >= LOG_LEVEL_ERROR
@@ -125,7 +125,7 @@ static inline const char* _log_timestamp() {
     fprintf(stdout, COLOR_WHITE "[TRACE] [%s] [%s:%d:%s] \n\t" fmt COLOR_RESET "\n", \
             _log_timestamp(), __FILE__, __LINE__, __func__, ##__VA_ARGS__) 
 #else
-#define LOG_DEBUG(fmt, ...)
+#define LOG_TRACE(fmt, ...)
 #endif
 
 #endif /* G_LOG_H */
