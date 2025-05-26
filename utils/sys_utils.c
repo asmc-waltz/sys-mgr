@@ -3,9 +3,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <log.h>
 #include <sys_comm.h>
 
-void send_method_call(DBusConnection* conn) {
+int send_method_call(DBusConnection* conn) {
     DBusMessage *msg;
     DBusMessageIter args;
     DBusPendingCall *pending;
@@ -15,8 +16,6 @@ void send_method_call(DBusConnection* conn) {
                                        SYS_MGR_DBUS_IFACE, \
                                        SYS_MGR_DBUS_METH);
 
-
-
     dbus_message_iter_init_append(msg, &args);
 
     const char *str = "Hello from client!";
@@ -25,7 +24,7 @@ void send_method_call(DBusConnection* conn) {
     dbus_message_iter_append_basic(&args, DBUS_TYPE_INT32, &num);
 
     if (!dbus_connection_send_with_reply(conn, msg, &pending, -1)) {
-        fprintf(stderr, "Out of memory!\n");
+        LOG_ERROR("Out of memory!");
         exit(1);
     }
 
@@ -42,13 +41,13 @@ void send_method_call(DBusConnection* conn) {
         if (dbus_message_iter_init(reply, &reply_args)) {
             char *reply_str;
             dbus_message_iter_get_basic(&reply_args, &reply_str);
-            printf("Method call reply: %s\n", reply_str);
+            LOG_INFO("Method call reply: %s", reply_str);
         }
         dbus_message_unref(reply);
     }
 }
 
-void send_signal(DBusConnection* conn) {
+int send_signal(DBusConnection* conn) {
     DBusMessage* msg;
     DBusMessageIter args;
 
@@ -62,13 +61,13 @@ void send_signal(DBusConnection* conn) {
     dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &signal_msg);
 
     if (!dbus_connection_send(conn, msg, NULL)) {
-        fprintf(stderr, "Out of memory!\n");
+        LOG_ERROR("Out of memory!");
         exit(1);
     }
 
     dbus_connection_flush(conn);
     dbus_message_unref(msg);
-    printf("Signal sent.\n");
+    LOG_INFO("Signal sent.");
 }
 
 int main(int argc, char** argv) {
@@ -80,7 +79,7 @@ int main(int argc, char** argv) {
     conn = dbus_bus_get(DBUS_BUS_SYSTEM, &err);
 
     if (dbus_error_is_set(&err)) {
-        fprintf(stderr, "Connection Error (%s)\n", err.message);
+        LOG_ERROR("Connection Error (%s)", err.message);
         dbus_error_free(&err);
     }
 
@@ -91,7 +90,7 @@ int main(int argc, char** argv) {
                                 DBUS_NAME_FLAG_REPLACE_EXISTING, \
                                 &err);
     if (dbus_error_is_set(&err)) {
-        fprintf(stderr, "Dbus request name error: %s\n", err.message);
+        LOG_ERROR("Dbus request name error: %s", err.message);
         dbus_error_free(&err);
     }
 

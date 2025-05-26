@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <sys/eventfd.h>
 
+#include <log.h>
 #include <sys_comm.h>
 
 int event_fd;
@@ -24,7 +25,7 @@ int init_event_file()
 {
     event_fd = eventfd(0, EFD_NONBLOCK);
     if (event_fd == -1) {
-        perror("Init eventfd error");
         return -1;
     }
+    return 0;
 }

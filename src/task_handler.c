@@ -1,6 +1,7 @@
 #include <pthread.h>
 #include <signal.h>
 
+#include <log.h>
 #include <sys_mgr.h>
 #include <workqueue.h>
 
@@ -11,23 +12,23 @@ void * main_task_handler(void* arg)
 {
     work_t *w = NULL;
 
-    printf("Task handler is running...\n");
+    LOG_INFO("Task handler is running...");
     while (g_run) {
         usleep(200000);
-        printf("Task handler is waiting for new task...\n");
+        LOG_DEBUG("Task handler is waiting for new task...");
         w = pop_work_wait();
         if (w == NULL) {
-            printf("Task handler is exiting...\n");
+            LOG_INFO("Task handler is exiting...");
             break;
         }
-        printf("Task: received opcode=%d, data=%s\n", w->opcode, w->data);
+        LOG_TRACE("Task: received opcode=%d, data=%s", w->opcode, w->data);
 
         sleep(1);
-        printf("Task done: %s\n\n", w->data);
+        LOG_TRACE("Task done: %s", w->data);
 
         free(w);
     };
 
-    printf("Task handler thread exiting...\n");
+    LOG_INFO("Task handler thread exiting...");
     return NULL;
 }

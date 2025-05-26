@@ -8,6 +8,7 @@
 #include <sys/epoll.h>
 #include <dbus/dbus.h>
 
+#include <log.h>
 #include <sys_mgr.h>
 #include <sys_comm.h>
 #include <workqueue.h>
@@ -18,20 +19,20 @@ volatile sig_atomic_t g_run = 1;
 void sig_handler(int sig) {
     switch (sig) {
         case SIGINT:
-            printf("\n[+] Received SIGINT (Ctrl+C). Exiting...\n");
+            LOG_WARN("[+] Received SIGINT (Ctrl+C). Exiting...");
             g_run = 0;
             event_set(event_fd, SIGINT);
             workqueue_stop();
             break;
         case SIGTERM:
-            printf("\n[+] Received SIGTERM. Shutdown...\n");
+            LOG_WARN("[+] Received SIGTERM. Shutdown...");
             exit(0);
         case SIGABRT:
-            printf("\n[+] Received SIGABRT. Exiting...\n");
+            LOG_WARN("[+] Received SIGABRT. Exiting...");
             event_set(event_fd, SIGABRT);
             break;
         default:
-            printf("\n[!] Received unidentified signal: %d\n", sig);
+            LOG_WARN("[!] Received unidentified signal: %d", sig);
             break;
     }
 }
@@ -39,17 +40,17 @@ void sig_handler(int sig) {
 int setup_signal_handler()
 {
     if (signal(SIGINT, sig_handler) == SIG_ERR) {
-        perror("Error registering signal SIGINT handler");
+        LOG_ERROR("Error registering signal SIGINT handler");
         return EINVAL;
     }
 
     if (signal(SIGTERM, sig_handler) == SIG_ERR) {
-        perror("Error registering signal SIGTERM handler");
+        LOG_ERROR("Error registering signal SIGTERM handler");
         return EINVAL;
     }
 
     if (signal(SIGABRT, sig_handler) == SIG_ERR) {
-        perror("Error registering signal SIGABRT handler");
+        LOG_ERROR("Error registering signal SIGABRT handler");
         return EINVAL;
     }
 
@@ -58,12 +59,12 @@ int setup_signal_handler()
 
 int main_loop()
 {
-    printf("System manager service is running...\n");
+    LOG_INFO("System manager service is running...");
     while (g_run) {
         usleep(200000);
     };
 
-    printf("System manager service is exiting...\n");
+    LOG_INFO("System manager service is exiting...");
     return 0;
 }
 
@@ -79,23 +80,26 @@ int main() {
 
     conn = setup_dbus();
     if (!conn) {
-        printf("System Manager: Unable to establish connection with DBus\n");
+        LOG_FATAL("System Manager: Unable to establish connection with DBus");
         return -1;
     }
 
     ret = pthread_create(&task_handler, NULL, main_task_handler, NULL);
     if (ret) {
-        printf("Failed to create worker thread: %s\n", strerror(ret));
+        LOG_FATAL("Failed to create worker thread: %s", strerror(ret));
         exit(1);
     }
 
     // Prepare eventfd to notify epoll when communicating with a thread
-    init_event_file();
+    ret = init_event_file();
+    if (ret) {
+        LOG_FATAL("Failed to initialize eventfd");
+    }
 
     // This thread processes DBus messages for the system manager
     ret = pthread_create(&dbus_listener, NULL, dbus_listen_thread, conn);
     if (ret) {
-        printf("Failed to create DBus listen thread: %s\n", strerror(ret));
+        LOG_FATAL("Failed to create DBus listen thread: %s", strerror(ret));
         exit(1);
     }
 
@@ -110,6 +114,6 @@ int main() {
     pthread_join(task_handler, NULL);
 
     close(event_fd);
-    printf("All services stopped. Safe exit.\n");
+    LOG_DEBUG("All services stopped. Safe exit.\n");
     return 0;
 }
