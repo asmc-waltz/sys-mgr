@@ -13,34 +13,132 @@
 extern volatile sig_atomic_t g_run;
 extern int event_fd;
 
-void print_message(DBusMessage *msg) {
+void print_indent(int level) {
+    for (int i = 0; i < level; i++) printf("  ");
+}
+
+void print_basic_type(DBusMessageIter* iter, int type, int indent) {
+    print_indent(indent);
+    switch (type) {
+        case DBUS_TYPE_INT16: {
+            int16_t val; dbus_message_iter_get_basic(iter, &val);
+            printf("INT16: %d\n", val); break;
+        }
+        case DBUS_TYPE_INT32: {
+            int32_t val; dbus_message_iter_get_basic(iter, &val);
+            printf("INT32: %d\n", val); break;
+        }
+        case DBUS_TYPE_INT64: {
+            int64_t val; dbus_message_iter_get_basic(iter, &val);
+            printf("INT64: %lld\n", (long long)val); break;
+        }
+        case DBUS_TYPE_UINT64: {
+            uint64_t val; dbus_message_iter_get_basic(iter, &val);
+            printf("UINT64: %llu\n", (unsigned long long)val); break;
+        }
+        case DBUS_TYPE_BOOLEAN: {
+            dbus_bool_t val; dbus_message_iter_get_basic(iter, &val);
+            printf("BOOLEAN: %s\n", val ? "true" : "false"); break;
+        }
+        case DBUS_TYPE_DOUBLE: {
+            double val; dbus_message_iter_get_basic(iter, &val);
+            printf("DOUBLE: %.2f\n", val); break;
+        }
+        case DBUS_TYPE_STRING: {
+            char* val; dbus_message_iter_get_basic(iter, &val);
+            printf("STRING: %s\n", val); break;
+        }
+        case DBUS_TYPE_OBJECT_PATH: {
+            char* path; dbus_message_iter_get_basic(iter, &path);
+            printf("OBJECT_PATH: %s\n", path); break;
+        }
+        case DBUS_TYPE_SIGNATURE: {
+            char* sig; dbus_message_iter_get_basic(iter, &sig);
+            printf("SIGNATURE: %s\n", sig); break;
+        }
+        default:
+            printf("Unhandled basic type: %c\n", type);
+            break;
+    }
+}
+
+void handle_struct(DBusMessageIter* iter, int indent) {
+    DBusMessageIter sub;
+    dbus_message_iter_recurse(iter, &sub);
+    print_indent(indent); printf("STRUCT {\n");
+    parse_dbus_iter(&sub, indent + 1);
+    print_indent(indent); printf("}\n");
+}
+
+void handle_variant(DBusMessageIter* iter, int indent) {
+    DBusMessageIter sub;
+    dbus_message_iter_recurse(iter, &sub);
+    print_indent(indent); printf("VARIANT (\n");
+    parse_dbus_iter(&sub, indent + 1);
+    print_indent(indent); printf(")\n");
+}
+
+void handle_array(DBusMessageIter* iter, int indent) {
+    DBusMessageIter sub;
+    dbus_message_iter_recurse(iter, &sub);
+    int elem_type = dbus_message_iter_get_arg_type(&sub);
+
+    // Check if array of dict entries
+    if (elem_type == DBUS_TYPE_DICT_ENTRY) {
+        print_indent(indent); printf("DICT {\n");
+        while (dbus_message_iter_get_arg_type(&sub) == DBUS_TYPE_DICT_ENTRY) {
+            DBusMessageIter entry;
+            dbus_message_iter_recurse(&sub, &entry);
+            print_indent(indent + 1); printf("KEY-VALUE:\n");
+            parse_dbus_iter(&entry, indent + 2);
+            dbus_message_iter_next(&sub);
+        }
+        print_indent(indent); printf("}\n");
+    } else {
+        print_indent(indent); printf("ARRAY of type '%c' {\n", elem_type);
+        while (dbus_message_iter_get_arg_type(&sub) != DBUS_TYPE_INVALID) {
+            parse_dbus_iter(&sub, indent + 1);
+            dbus_message_iter_next(&sub);
+        }
+        print_indent(indent); printf("}\n");
+    }
+}
+
+void parse_dbus_iter(DBusMessageIter* iter, int indent) {
+    while (dbus_message_iter_get_arg_type(iter) != DBUS_TYPE_INVALID) {
+        int type = dbus_message_iter_get_arg_type(iter);
+
+        if (dbus_type_is_basic(type)) {
+            print_basic_type(iter, type, indent);
+        } else {
+            switch (type) {
+                case DBUS_TYPE_STRUCT:
+                    handle_struct(iter, indent); break;
+                case DBUS_TYPE_ARRAY:
+                    handle_array(iter, indent); break;
+                case DBUS_TYPE_VARIANT:
+                    handle_variant(iter, indent); break;
+                default:
+                    print_indent(indent);
+                    printf("Unhandled container type: %c\n", type);
+            }
+        }
+
+        dbus_message_iter_next(iter);
+    }
+}
+
+void handle_message(DBusMessage* msg) {
     DBusMessageIter args;
+
     if (!dbus_message_iter_init(msg, &args)) {
-        LOG_ERROR("Message has no arguments");
+        printf("Message has no arguments.\n");
         return;
     }
 
-    LOG_DEBUG("Received message: %s", dbus_message_get_member(msg));
-
-    do {
-        int arg_type = dbus_message_iter_get_arg_type(&args);
-        if (arg_type == DBUS_TYPE_INVALID) break;
-
-        LOG_TRACE("  Arg type: %c", arg_type);
-        if (arg_type == DBUS_TYPE_STRING) {
-            char *val;
-            dbus_message_iter_get_basic(&args, &val);
-            LOG_TRACE("    STRING: %s", val);
-        } else if (arg_type == DBUS_TYPE_INT32) {
-            int val;
-            dbus_message_iter_get_basic(&args, &val);
-            LOG_TRACE("    INT32: %d", val);
-        } else {
-            LOG_TRACE("    Other type (not printed)");
-        }
-
-        dbus_message_iter_next(&args);
-    } while (1);
+    printf("=== Start Parsing D-Bus Message ===\n");
+    parse_dbus_iter(&args, 0);
+    printf("=== End Parsing ===\n");
 }
 
 int add_dbus_match_rule(DBusConnection *conn, const char *rule)
@@ -71,7 +169,7 @@ DBusConnection * setup_dbus()
     int ret = 0;
 
     dbus_error_init(&err);
-    conn = dbus_bus_get(DBUS_BUS_SYSTEM, &err);
+    conn = dbus_bus_get(DBUS_BUS_SESSION, &err);
     if (dbus_error_is_set(&err)) {
         LOG_ERROR("DBus connection Error: %s", err.message);
         dbus_error_free(&err);
@@ -162,7 +260,8 @@ void* dbus_listen_thread(void* arg) {
                     if (dbus_message_is_method_call(msg, \
                                                     SYS_MGR_DBUS_IFACE, \
                                                     SYS_MGR_DBUS_METH)) {
-                        print_message(msg);
+			handle_message(msg);
+
                         DBusMessage *reply;
                         DBusMessageIter args;
                         reply = dbus_message_new_method_return(msg);
@@ -174,7 +273,7 @@ void* dbus_listen_thread(void* arg) {
                     } else if (dbus_message_is_signal(msg, \
                                                       UI_DBUS_IFACE, \
                                                       UI_DBUS_SIG)) {
-                        print_message(msg);
+			handle_message(msg);
 
                         work_t *w = malloc(sizeof(work_t));
                         w->opcode = i++;
