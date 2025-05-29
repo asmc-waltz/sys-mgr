@@ -6,6 +6,12 @@
 #include <log.h>
 #include <sys_comm.h>
 
+typedef struct {
+    int length;
+    int opcode;
+    void *data;
+} g_frame;
+
 int send_method_call(DBusConnection* conn) {
     DBusMessage *msg;
     DBusMessageIter args;
@@ -18,10 +24,10 @@ int send_method_call(DBusConnection* conn) {
 
     dbus_message_iter_init_append(msg, &args);
 
-    const char *str = "Hello from client!";
-    int num = 123;
+    const char *str = "TERMINAL_UI";
+    int opcode = 0;
     dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &str);
-    dbus_message_iter_append_basic(&args, DBUS_TYPE_INT32, &num);
+    dbus_message_iter_append_basic(&args, DBUS_TYPE_INT32, &opcode);
 
     if (!dbus_connection_send_with_reply(conn, msg, &pending, -1)) {
         LOG_ERROR("Out of memory!");
@@ -49,16 +55,59 @@ int send_method_call(DBusConnection* conn) {
 
 int send_signal(DBusConnection* conn) {
     DBusMessage* msg;
-    DBusMessageIter args;
+    DBusMessageIter args, struct_iter, dict_iter, entry_iter;
+
+    const char* name = "TERMINAL_UI";
+    int32_t opcode = 23;
+    const char* key1 = "SSID";
+    const char* val1 = "local_network";
+    const char* key2 = "PASSWORD";
+    const char* val2 = "123456";
+    const char* key3 = "AUTO_CONNECT";
+    const char* val3 = "1";
+    const char* extra = "private network";
+
 
     msg = dbus_message_new_signal(UI_DBUS_OBJ_PATH, \
                                   UI_DBUS_IFACE, \
                                   UI_DBUS_SIG);
+    if (!msg) {
+        fprintf(stderr, "Message NULL\n");
+        exit(1);
+    }
 
     dbus_message_iter_init_append(msg, &args);
 
-    const char* signal_msg = "This is a signal!";
-    dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &signal_msg);
+    // Begin struct (si a{ss} s)
+    dbus_message_iter_open_container(&args, DBUS_TYPE_STRUCT, NULL, &struct_iter);
+
+    dbus_message_iter_append_basic(&struct_iter, DBUS_TYPE_STRING, &name);
+    dbus_message_iter_append_basic(&struct_iter, DBUS_TYPE_INT32, &opcode);
+
+    // Begin dict
+    dbus_message_iter_open_container(&struct_iter, DBUS_TYPE_ARRAY, "{ss}", &dict_iter);
+    // Entry 1
+    dbus_message_iter_open_container(&dict_iter, DBUS_TYPE_DICT_ENTRY, NULL, &entry_iter);
+    dbus_message_iter_append_basic(&entry_iter, DBUS_TYPE_STRING, &key1);
+    dbus_message_iter_append_basic(&entry_iter, DBUS_TYPE_STRING, &val1);
+    dbus_message_iter_close_container(&dict_iter, &entry_iter);
+    // Entry 2
+    dbus_message_iter_open_container(&dict_iter, DBUS_TYPE_DICT_ENTRY, NULL, &entry_iter);
+    dbus_message_iter_append_basic(&entry_iter, DBUS_TYPE_STRING, &key2);
+    dbus_message_iter_append_basic(&entry_iter, DBUS_TYPE_STRING, &val2);
+    dbus_message_iter_close_container(&dict_iter, &entry_iter);
+    // Entry 3
+    dbus_message_iter_open_container(&dict_iter, DBUS_TYPE_DICT_ENTRY, NULL, &entry_iter);
+    dbus_message_iter_append_basic(&entry_iter, DBUS_TYPE_STRING, &key3);
+    dbus_message_iter_append_basic(&entry_iter, DBUS_TYPE_STRING, &val3);
+    dbus_message_iter_close_container(&dict_iter, &entry_iter);
+
+    dbus_message_iter_close_container(&struct_iter, &dict_iter);
+
+    // Extra string
+    dbus_message_iter_append_basic(&struct_iter, DBUS_TYPE_STRING, &extra);
+
+    dbus_message_iter_close_container(&args, &struct_iter);
 
     if (!dbus_connection_send(conn, msg, NULL)) {
         LOG_ERROR("Out of memory!");
@@ -76,7 +125,7 @@ int main(int argc, char** argv) {
     int ret = 0;
 
     dbus_error_init(&err);
-    conn = dbus_bus_get(DBUS_BUS_SYSTEM, &err);
+    conn = dbus_bus_get(DBUS_BUS_SESSION, &err);
 
     if (dbus_error_is_set(&err)) {
         LOG_ERROR("Connection Error (%s)", err.message);
