@@ -145,6 +145,49 @@ void handle_message(DBusMessage* msg) {
     printf("=== End Parsing ===\n");
 }
 
+int dbus_event_handler(DBusConnection *conn)
+{
+    DBusMessage *msg;
+
+    while (dbus_connection_read_write_dispatch(conn, 0)) {
+        msg = dbus_connection_pop_message(conn);
+        if (msg == NULL) {
+            usleep(10000);
+            continue;
+        }
+
+        if (dbus_message_is_method_call(msg, \
+                                        SYS_MGR_DBUS_IFACE, \
+                                        SYS_MGR_DBUS_METH)) {
+            handle_message(msg);
+
+            DBusMessage *reply;
+            DBusMessageIter args;
+            reply = dbus_message_new_method_return(msg);
+            dbus_message_iter_init_append(reply, &args);
+            const char *reply_str = "Method reply OK";
+            dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &reply_str);
+            dbus_connection_send(conn, reply, NULL);
+            dbus_message_unref(reply);
+        } else if (dbus_message_is_signal(msg, \
+                                          UI_DBUS_IFACE, \
+                                          UI_DBUS_SIG)) {
+            handle_message(msg);
+
+            work_t *w = malloc(sizeof(work_t));
+            w->opcode = 10;
+            snprintf(w->data, sizeof(w->data), "Message #%d", w->opcode);
+
+            push_work(w);
+            LOG_DEBUG("[DBus Thread] Pushed job %d", w->opcode);
+        }
+
+        dbus_message_unref(msg);
+        break;
+     }
+}
+
+
 int add_dbus_match_rule(DBusConnection *conn, const char *rule)
 {
     DBusError err;
@@ -254,44 +297,7 @@ void* dbus_listen_thread(void* arg) {
         int n = epoll_wait(epoll_fd, events, 10, -1);
         for (int i = 0; i < n; i++) {
             if (events[i].data.fd == dbus_fd) {
-                while (dbus_connection_read_write_dispatch(conn, 0)) {
-                    msg = dbus_connection_pop_message(conn);
-                    if (msg == NULL) {
-                        usleep(10000);
-                        continue;
-                    }
-
-                    if (dbus_message_is_method_call(msg, \
-                                                    SYS_MGR_DBUS_IFACE, \
-                                                    SYS_MGR_DBUS_METH)) {
-			handle_message(msg);
-
-                        DBusMessage *reply;
-                        DBusMessageIter args;
-                        reply = dbus_message_new_method_return(msg);
-                        dbus_message_iter_init_append(reply, &args);
-                        const char *reply_str = "Method reply OK";
-                        dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &reply_str);
-                        dbus_connection_send(conn, reply, NULL);
-                        dbus_message_unref(reply);
-                    } else if (dbus_message_is_signal(msg, \
-                                                      UI_DBUS_IFACE, \
-                                                      UI_DBUS_SIG)) {
-			handle_message(msg);
-
-                        work_t *w = malloc(sizeof(work_t));
-                        w->opcode = i++;
-                        snprintf(w->data, sizeof(w->data), "Message #%d", w->opcode);
-
-                        push_work(w);
-                        LOG_DEBUG("[DBus Thread] Pushed job %d", w->opcode);
-                    }
-
-                    dbus_message_unref(msg);
-                    break;
-
-
-                }
+                dbus_event_handler(conn);
             } else if (events[i].data.fd == event_fd) {
                 LOG_INFO("Received event ID [%" PRIu64 "], stopping DBus listener...", \
                        event_get(event_fd));
