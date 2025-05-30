@@ -132,7 +132,9 @@ int main(int argc, char** argv) {
         dbus_error_free(&err);
     }
 
-    if (!conn) exit(1);
+    if (!conn) {
+        return EXIT_FAILURE;
+    }
 
     ret = dbus_bus_request_name(conn, \
                                 UI_DBUS_SER, \
@@ -144,7 +146,7 @@ int main(int argc, char** argv) {
     }
 
     if (ret != DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER) {
-        return NULL;
+        return EXIT_FAILURE;
     }
 
     if (argc > 1 && strcmp(argv[1], "signal") == 0)
@@ -152,5 +154,5 @@ int main(int argc, char** argv) {
     else
         send_method_call(conn);
 
-    return 0;
+    return EXIT_SUCCESS;
 }

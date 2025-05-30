@@ -1,9 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <errno.h>
 #include <sys/epoll.h>
 #include <signal.h>
 #include <sys/eventfd.h>
+#include <inttypes.h>
 
 #include <log.h>
 #include <sys_mgr.h>
@@ -12,6 +14,8 @@
 
 extern volatile sig_atomic_t g_run;
 extern int event_fd;
+
+void parse_dbus_iter(DBusMessageIter* iter, int indent);
 
 void print_indent(int level) {
     for (int i = 0; i < level; i++) printf("  ");
@@ -289,7 +293,7 @@ void* dbus_listen_thread(void* arg) {
 
                 }
             } else if (events[i].data.fd == event_fd) {
-                LOG_INFO("Received event ID [%lld], stopping DBus listener...", \
+                LOG_INFO("Received event ID [%" PRIu64 "], stopping DBus listener...", \
                        event_get(event_fd));
             }
         }
