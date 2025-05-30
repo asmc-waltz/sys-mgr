@@ -12,6 +12,7 @@
 #include <sys_comm.h>
 #include <workqueue.h>
 
+#define MAX_EVENTS 2
 extern volatile sig_atomic_t g_run;
 extern int event_fd;
 
@@ -261,23 +262,30 @@ DBusConnection * setup_dbus()
 
 void* dbus_listen_thread(void* arg) {
     DBusConnection *conn = (DBusConnection*)arg;
-    DBusMessage *msg;
-
     int dbus_fd;
+    int epoll_fd;
+    struct epoll_event ev;
+    struct epoll_event events_detected[MAX_EVENTS];
+    int n_ready;
+    int ready_fd;
+
+    // Get DBus file desc
     dbus_connection_get_unix_fd(conn, &dbus_fd);
     if (dbus_fd < 0) {
         LOG_ERROR("Failed to get dbus fd");
         return NULL;
     }
  
-    int epoll_fd;
-    struct epoll_event ev, events[10];
+    // Create epoll file desc
     epoll_fd = epoll_create1(0);
     if (epoll_fd == -1) {
         LOG_ERROR("Failed to create epoll fd");
         return NULL;
     }
+
     ev.events = EPOLLIN;
+
+    // Add DBus file desc
     ev.data.fd = dbus_fd;
     if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, dbus_fd, &ev) == -1) {
         LOG_ERROR("Failed to add fd to epoll_ctl");
@@ -285,22 +293,26 @@ void* dbus_listen_thread(void* arg) {
         return NULL;
     }
 
-
-    struct epoll_event ev2;
-    ev2.events = EPOLLIN;
-    ev2.data.fd = event_fd;
-    epoll_ctl(epoll_fd, EPOLL_CTL_ADD, event_fd, &ev2);
+    // Add Event file desc
+    ev.data.fd = event_fd;
+    if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, event_fd, &ev) == -1) {
+        LOG_ERROR("Failed to add fd to epoll_ctl");
+        close(epoll_fd);
+        return NULL;
+    }
 
     LOG_INFO("System manager DBus communication is running...");
     while (g_run) {
         LOG_DEBUG("Waiting for DBus message...");
-        int n = epoll_wait(epoll_fd, events, 10, -1);
-        for (int i = 0; i < n; i++) {
-            if (events[i].data.fd == dbus_fd) {
+        n_ready = epoll_wait(epoll_fd, events_detected, MAX_EVENTS, -1);
+        for (int cnt = 0; cnt < n_ready; cnt++) {
+            ready_fd = events_detected[cnt].data.fd;
+            if (ready_fd == dbus_fd) {
                 dbus_event_handler(conn);
-            } else if (events[i].data.fd == event_fd) {
-                LOG_INFO("Received event ID [%" PRIu64 "], stopping DBus listener...", \
-                       event_get(event_fd));
+            } else if (ready_fd == event_fd) {
+                LOG_INFO("Received event ID [%" PRIu64 \
+                                "], stopping DBus listener...", \
+                                event_get(event_fd));
             }
         }
     }
