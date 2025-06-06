@@ -125,7 +125,7 @@ int main(int argc, char** argv) {
     int ret = 0;
 
     dbus_error_init(&err);
-    conn = dbus_bus_get(DBUS_BUS_SESSION, &err);
+    conn = dbus_bus_get(DBUS_BUS_SYSTEM, &err);
 
     if (dbus_error_is_set(&err)) {
         LOG_ERROR("Connection Error (%s)", err.message);
