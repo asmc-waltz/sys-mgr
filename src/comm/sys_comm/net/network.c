@@ -62,3 +62,20 @@ NMDevice * g_nm_device_get_by_iface(const char *exp_iface)
 
     return NULL;
 }
+
+// TODO: Listen to state change signal from NM
+int disconnect_interface(const char *exp_iface)
+{
+    g_autoptr(GError) error = NULL;
+    NMDevice *dev = g_nm_device_get_by_iface(exp_iface);
+    if (!dev) {
+        return EXIT_FAILURE;
+    }
+
+    if (!nm_device_disconnect(dev, NULL, &error)) {
+        LOG_ERROR("Failed to disconnect: %s\n", error->message);
+        return EXIT_FAILURE;
+    }
+
+    return EXIT_SUCCESS;
+}
