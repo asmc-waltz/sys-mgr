@@ -11,6 +11,7 @@
 #include <log.h>
 #include <sys_mgr.h>
 #include <dbus_comm.h>
+#include <sys_comm.h>
 #include <workqueue.h>
 
 extern int event_fd;
@@ -84,6 +85,7 @@ int main() {
         goto exit_error;
     }
 
+
     ret = pthread_create(&task_handler, NULL, main_task_handler, NULL);
     if (ret) {
         LOG_FATAL("Failed to create worker thread: %s", strerror(ret));
@@ -104,10 +106,16 @@ int main() {
         goto exit_workqueue;
     }
 
+    ret = network_manager_comm_init();
+    if (ret) {
+        LOG_FATAL("Failed to create network manager client: %s", strerror(ret));
+        goto exit_listener;
+    }
+
     // System manager's primary tasks are executed within a loop
     ret = main_loop();
     if (ret) {
-        goto exit_listener;
+        goto exit_nm;
     }
 
     pthread_join(dbus_listener, NULL);
@@ -116,6 +124,9 @@ int main() {
     close(event_fd);
     LOG_DEBUG("All services stopped. Safe exit.\n");
     return EXIT_SUCCESS;
+
+exit_nm:
+    network_manager_comm_deinit();
 
 exit_listener:
     event_set(event_fd, SIGUSR1);

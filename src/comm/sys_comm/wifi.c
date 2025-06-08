@@ -9,12 +9,7 @@
 int scan_wifi()
 {
     g_autoptr(GError) error = NULL;
-    g_autoptr(NMClient) client = nm_client_new(NULL, &error);
-
-    if (!client) {
-        LOG_ERROR("Failed to create NMClient: %s\n", error->message);
-        return EXIT_FAILURE;
-    }
+    NMClient *client = get_nm_client();
 
     const GPtrArray *devices = nm_client_get_devices(client);
 

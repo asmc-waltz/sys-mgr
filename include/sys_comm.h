@@ -6,6 +6,6 @@
 #ifndef G_SYS_COMM_H
 #define G_SYS_COMM_H
 
-int scan_wifi();
+#include <sys_comm/network.h>
 
 #endif /* G_SYS_COMM_H */
