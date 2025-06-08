@@ -43,4 +43,22 @@ void network_manager_comm_deinit()
     }
 }
 
+NMDevice * g_nm_device_get_by_iface(const char *exp_iface)
+{
+    NMClient *client = get_nm_client();
+    const GPtrArray *devs = nm_client_get_devices(client);
+    const char *iface;
 
+    for (guint i = 0; i < devs->len; ++i) {
+        NMDevice *net_dev = g_ptr_array_index(devs, i);
+        iface = nm_device_get_iface(net_dev);
+        if (net_dev && !strcmp(iface, exp_iface)) {
+            LOG_TRACE("Found network interface: %s", iface);
+            return net_dev;
+        } else {
+            LOG_TRACE("Detected device interface: %s", iface);
+        }
+    }
+
+    return NULL;
+}
