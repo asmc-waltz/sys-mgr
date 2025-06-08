@@ -4,7 +4,7 @@
 #include <string.h>
 
 #include <log.h>
-#include <sys_comm.h>
+#include <dbus_comm.h>
 
 typedef struct {
     int length;

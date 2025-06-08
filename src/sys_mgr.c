@@ -10,7 +10,7 @@
 
 #include <log.h>
 #include <sys_mgr.h>
-#include <sys_comm.h>
+#include <dbus_comm.h>
 #include <workqueue.h>
 
 extern int event_fd;
