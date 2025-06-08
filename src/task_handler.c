@@ -25,7 +25,13 @@ void * main_task_handler(void* arg)
         LOG_TRACE("Task: received opcode=%d, data=%s", w->opcode, w->data);
 
 /******************************************************************************/
-        scan_wifi();
+        LOG_INFO("#############################################");
+        // wifi_connected_ap_get("wlu1u3i2");
+        wifi_scan_and_get_results("wlu1u3i2", 1);
+        // g_nm_device_get_by_iface("wlu1u3i2");
+        // disconnect_interface("wlu1u3i2");
+        wifi_connect_to_ssid("wlu1u3i2", "Danh P3", "10110100101");
+        LOG_INFO("#############################################");
 /******************************************************************************/
 
         LOG_TRACE("Task done: %s", w->data);
