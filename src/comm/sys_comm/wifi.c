@@ -50,7 +50,7 @@ int scan_wifi()
                 int strength = nm_access_point_get_strength(ap);
                 NM80211ApSecurityFlags sec_flags = nm_access_point_get_flags(ap);
 
-                LOG_TRACE("  SSID: %-30s Strength: %3d%% SecurityFlags: 0x%x\n",
+                LOG_TRACE("SSID: %-30s Strength: %3d%% SecurityFlags: 0x%x",
                         ssid_str ? ssid_str : "<hidden>",
                         strength,
                         sec_flags);
