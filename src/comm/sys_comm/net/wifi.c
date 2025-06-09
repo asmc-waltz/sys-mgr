@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <glib.h>
+#include <glib-object.h>
 #include <NetworkManager.h>
 
 #include <log.h>
@@ -89,72 +90,170 @@ int wifi_connected_ap_get(const char *iface)
 }
 
 
-static void
-add_and_activate_cb(GObject *client, GAsyncResult *result, gpointer user_data)
+NMAccessPoint * find_ap_on_wifi_device(NMDevice *device, const char *bssid, \
+                                       const char *ssid, gboolean complete)
 {
-    LOG_TRACE("Wi-Fi interface is not connected to any AP #########");
-}
-
-
-int wifi_connect_to_ssid(const char *iface_name, const char *ssid, \
-                         const char *password)
-{
-
-    NMClient *client = get_nm_client();
-    char *ssid_str = NULL;
-
+    const GPtrArray *aps;
     NMAccessPoint *ap = NULL;
-    const guint8 *cur_ssid = NULL;
-    NMDevice *dev = g_nm_device_get_by_iface(iface_name);
-    NMDeviceWifi *wifi_dev = NM_DEVICE_WIFI(dev);
+    int i;
 
-    // 2. Quét access point đang thấy
-    const GPtrArray *aps = nm_device_wifi_get_access_points(wifi_dev);
-    NMAccessPoint *target_ap = NULL;
+    g_return_val_if_fail(NM_IS_DEVICE_WIFI(device), NULL);
 
+    aps = nm_device_wifi_get_access_points(NM_DEVICE_WIFI(device));
     LOG_TRACE("Found %u access points:\n", aps->len);
 
+    for (i = 0; i < aps->len; i++) {
+        NMAccessPoint *candidate_ap = g_ptr_array_index(aps, i);
 
-    for (guint i = 0; i < aps->len; ++i) {
-        NMAccessPoint *ap = g_ptr_array_index(aps, i);
+        // Match BSSID if requested
+        if (bssid) {
+            const char *candidate_bssid = \
+                nm_access_point_get_bssid(candidate_ap);
+            if (!candidate_bssid)
+                continue;
 
-
-        cur_ssid = nm_access_point_get_ssid(ap);
-        if (!cur_ssid) {
-            continue;
+            if (complete) {
+                if (g_str_has_prefix(candidate_bssid, bssid))
+                    LOG_TRACE("%s\n", candidate_bssid);
+            } else if (strcmp(bssid, candidate_bssid) != 0)
+                continue;
         }
-        ssid_str = nm_utils_ssid_to_utf8(g_bytes_get_data(cur_ssid, NULL), \
-                                             g_bytes_get_size(cur_ssid));
-        LOG_TRACE("Wi-Fi interface [%s] can see AP: [%s]\n", iface_name, \
-                ssid_str ? ssid_str : "<hidden>");
 
+        // Match SSID if requested
+        if (ssid) {
+            GBytes *candidate_ssid = nm_access_point_get_ssid(candidate_ap);
+            if (!candidate_ssid)
+                continue;
 
+            char *ssid_tmp = \
+                nm_utils_ssid_to_utf8(g_bytes_get_data(candidate_ssid, NULL), \
+                                        g_bytes_get_size(candidate_ssid));
 
-        // const char *ap_ssid = nm_utils_ssid_to_utf8(nm_access_point_get_ssid(ap));
+            if (complete) {
+                if (g_str_has_prefix(ssid_tmp, ssid))
+                    LOG_TRACE("%s\n", ssid_tmp);
+            } else if (strcmp(ssid, ssid_tmp) != 0) {
+                g_free(ssid_tmp);
+                continue;
+            }
 
-        if (g_strcmp0(ssid_str, ssid) == 0) {
+            LOG_TRACE("Wi-Fi interface [%s] found AP: [%s]\n", \
+                      nm_device_get_iface(device), \
+                      ssid_tmp ? ssid_tmp : "<hidden>");
 
-            LOG_TRACE("Wi-Fi interface [%s] connecting to AP: [%s]\n", iface_name, \
-                ssid_str ? ssid_str : "<hidden>");
-            g_free(ssid_str);
-            target_ap = ap;
+            g_free(ssid_tmp);
+        }
+
+        // If not in "complete" mode, return first match
+        if (!complete) {
+            ap = candidate_ap;
             break;
         }
-        g_free(ssid_str);
     }
 
-    if (!target_ap) {
-        g_warning("SSID '%s' not found by interface %s", ssid, iface_name);
+    return ap;
+}
+
+NMConnection * find_connection_on_wifi_device(NMDevice *dev, \
+                                              NMAccessPoint *ap, \
+                                              const char *con_name)
+{
+    const GPtrArray *avail_cons;
+    gboolean name_match = FALSE;
+    NMConnection *connection = NULL;
+    int i;
+
+    g_return_val_if_fail(NM_IS_DEVICE_WIFI(dev), NULL);
+    g_return_val_if_fail(NM_IS_ACCESS_POINT(ap), NULL);
+
+    avail_cons = nm_device_get_available_connections(dev);
+    LOG_TRACE("Found %u available connections\n", avail_cons->len);
+
+    for (i = 0; i < avail_cons->len; i++) {
+        NMConnection *avail_con = g_ptr_array_index(avail_cons, i);
+        const char   *id = nm_connection_get_id(avail_con);
+
+        LOG_TRACE("Wi-Fi connection ID found: [%s]", id);
+
+        // Match connection name (optional)
+        if (con_name) {
+            if (!id || strcmp(id, con_name) != 0)
+                continue;
+            name_match = TRUE;
+        }
+
+        // Check if connection is valid for AP
+        if (nm_access_point_connection_valid(ap, avail_con)) {
+            connection = g_object_ref(avail_con);
+            LOG_TRACE("Wi-Fi connection ID [%s] is valid for AP", id);
+            break;
+        }
+    }
+
+    if (name_match && !connection) {
+        LOG_TRACE("Error: Connection '%s' exists but properties don't match.", con_name);
+        return NULL;
+    }
+
+    return connection;
+}
+
+static void add_and_activate_cb(GObject *client, GAsyncResult *result, \
+                                gpointer user_data)
+{
+    GError *error = NULL;
+    GVariant *out_result = NULL;
+
+    NMActiveConnection *ac = nm_client_add_and_activate_connection2_finish(\
+                                NM_CLIENT(client), result, &out_result, &error);
+
+    if (error) {
+        LOG_ERROR("Failed to activate connection (async): %s", \
+                  error->message);
+        g_error_free(error);
         return;
     }
 
+    LOG_INFO("Successfully activating connection (NMActiveConnection=%p)", ac);
 
-  // 3. Tạo connection
+    if (out_result) {
+        gchar *out_str = g_variant_print(out_result, TRUE);
+        LOG_TRACE("Out result: %s", out_str);
+        g_free(out_str);
+        g_variant_unref(out_result);
+    }
+
+    g_object_unref(ac);
+}
+
+
+int wifi_connect_to_ssid(const char *iface_name, const char *ssid, const char *password)
+{
+    NMClient *client = get_nm_client();
+    if (!client) {
+        LOG_ERROR("Failed to get NMClient");
+        return EXIT_FAILURE;
+    }
+
+    NMDevice *dev = g_nm_device_get_by_iface(iface_name);
+    if (!dev) {
+        LOG_ERROR("Interface '%s' not found", iface_name);
+        return EXIT_FAILURE;
+    }
+
+    NMAccessPoint *ap = find_ap_on_wifi_device(dev, NULL, ssid, FALSE);
+    if (!ap) {
+        LOG_ERROR("SSID '%s' not found by interface '%s'", ssid, iface_name);
+        return EXIT_FAILURE;
+    }
+
+    LOG_INFO("Found target AP for SSID '%s' on interface '%s'", ssid, iface_name);
+
     NMConnection *connection = nm_simple_connection_new();
 
     NMSettingWireless *s_wifi = (NMSettingWireless *)nm_setting_wireless_new();
     g_object_set(G_OBJECT(s_wifi),
-                 NM_SETTING_WIRELESS_SSID, nm_access_point_get_ssid(target_ap),
+                 NM_SETTING_WIRELESS_SSID, nm_access_point_get_ssid(ap),
                  NM_SETTING_WIRELESS_MODE, "infrastructure",
                  NULL);
     nm_connection_add_setting(connection, NM_SETTING(s_wifi));
@@ -182,32 +281,21 @@ int wifi_connect_to_ssid(const char *iface_name, const char *ssid, \
                  NULL);
     nm_connection_add_setting(connection, NM_SETTING(s_con));
 
-    // 4. Add and activate connection (version 2)
-    GVariant *options = NULL;  // nếu cần có thể set thêm options
     GError *error = NULL;
-    NMActiveConnection *active_conn = NULL;
-
+    GVariant *options = NULL;
     nm_client_add_and_activate_connection2(client,
-                                                         connection,
-                                                         NM_DEVICE(wifi_dev),
-                                                         NULL,  // specific AP optional
-                                                         options,
-                                                         NULL,
-                                                         add_and_activate_cb,
-                                                         &error);
+                                           connection,
+                                           dev,
+                                           NULL,
+                                           options,
+                                           NULL,
+                                           add_and_activate_cb,
+                                           &error);
 
-    if (error) {
-        g_warning("Failed to activate connection: %s", error->message);
-        g_error_free(error);
-    } else {
-        // g_print("Connection to SSID '%s' initiated on %s (ActiveConnection=%p)\n",
-        //         ssid, iface_name, active_conn);
+    LOG_INFO("Initiated connection to SSID '%s' on interface '%s'", ssid, iface_name);
 
-        // Optionally: connect signal to track state of ActiveConnection
-        // g_signal_connect(active_conn, "notify::state", G_CALLBACK(on_active_connection_state_changed), NULL);
-    }
+    // Release temporary refs
+    g_object_unref(connection);
 
-    // if (active_conn) {
-    //     g_object_unref(active_conn);
-    // }
+    return EXIT_SUCCESS;
 }
