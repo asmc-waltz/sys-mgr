@@ -19,7 +19,6 @@ typedef struct {
 int wifi_disconnect_device(const char *iface_name)
 {
     NMDevice *dev;
-
     GError *error = NULL;
 
     dev = g_nm_device_get_by_iface(iface_name);
@@ -35,6 +34,11 @@ int wifi_disconnect_device(const char *iface_name)
 
     LOG_INFO("Disconnecting device %s...", iface_name);
     nm_device_disconnect(dev, NULL, &error);
+    if (error) {
+        LOG_ERROR("Disconnect failed: %s", error->message);
+        g_error_free(error);
+        return EXIT_FAILURE;
+    }
 
     return EXIT_SUCCESS;
 }
@@ -99,7 +103,7 @@ int wifi_list_access_points(const char *iface_name)
     NMDeviceWifi *wifi_device;
     const GPtrArray *aps;
     NMAccessPoint *ap;
-    const guint8 *ssid;
+    GBytes *ssid_bytes;
     char *ssid_str;
     guint i;
     int strength;
@@ -123,12 +127,13 @@ int wifi_list_access_points(const char *iface_name)
 
     for (i = 0; i < aps->len; i++) {
         ap = g_ptr_array_index(aps, i);
-        ssid = nm_access_point_get_ssid(ap);
-        if (!ssid)
+        GBytes *ssid_bytes = nm_access_point_get_ssid(ap);
+        if (!ssid_bytes)
             continue;
 
-        ssid_str = nm_utils_ssid_to_utf8(g_bytes_get_data(ssid, NULL),
-                                         g_bytes_get_size(ssid));
+        ssid_str = nm_utils_ssid_to_utf8(g_bytes_get_data(ssid_bytes, NULL),
+                                         g_bytes_get_size(ssid_bytes));
+
         strength = nm_access_point_get_strength(ap);
         sec_flags = nm_access_point_get_flags(ap);
 
@@ -143,25 +148,31 @@ int wifi_list_access_points(const char *iface_name)
     return EXIT_SUCCESS;
 }
 
-NMAccessPoint * find_ap_on_wifi_device(NMDevice *device, const char *bssid, \
-                                       const char *ssid, gboolean complete)
+NMAccessPoint *find_ap_on_wifi_device(NMDevice *device, \
+                                      const char *bssid, \
+                                      const char *ssid, \
+                                      gboolean complete)
 {
     const GPtrArray *aps;
-    NMAccessPoint *ap = NULL;
+    NMAccessPoint *ap;
     int i;
 
     g_return_val_if_fail(NM_IS_DEVICE_WIFI(device), NULL);
 
     aps = nm_device_wifi_get_access_points(NM_DEVICE_WIFI(device));
+    ap = NULL;
+
     LOG_TRACE("Found %u access points:\n", aps->len);
 
     for (i = 0; i < aps->len; i++) {
-        NMAccessPoint *candidate_ap = g_ptr_array_index(aps, i);
+        NMAccessPoint *candidate_ap;
+        candidate_ap = g_ptr_array_index(aps, i);
 
-        // Match BSSID if requested
+        /* Match BSSID if requested */
         if (bssid) {
-            const char *candidate_bssid = \
-                nm_access_point_get_bssid(candidate_ap);
+            const char *candidate_bssid;
+
+            candidate_bssid = nm_access_point_get_bssid(candidate_ap);
             if (!candidate_bssid)
                 continue;
 
@@ -172,15 +183,18 @@ NMAccessPoint * find_ap_on_wifi_device(NMDevice *device, const char *bssid, \
                 continue;
         }
 
-        // Match SSID if requested
+        /* Match SSID if requested */
         if (ssid) {
-            GBytes *candidate_ssid = nm_access_point_get_ssid(candidate_ap);
+            GBytes *candidate_ssid;
+            char *ssid_tmp;
+
+            candidate_ssid = nm_access_point_get_ssid(candidate_ap);
             if (!candidate_ssid)
                 continue;
 
-            char *ssid_tmp = \
-                nm_utils_ssid_to_utf8(g_bytes_get_data(candidate_ssid, NULL), \
-                                        g_bytes_get_size(candidate_ssid));
+            ssid_tmp = nm_utils_ssid_to_utf8( \
+                g_bytes_get_data(candidate_ssid, NULL), \
+                g_bytes_get_size(candidate_ssid));
 
             if (complete) {
                 if (g_str_has_prefix(ssid_tmp, ssid))
@@ -197,7 +211,7 @@ NMAccessPoint * find_ap_on_wifi_device(NMDevice *device, const char *bssid, \
             g_free(ssid_tmp);
         }
 
-        // If not in "complete" mode, return first match
+        /* If not in "complete" mode, return first match */
         if (!complete) {
             ap = candidate_ap;
             break;
@@ -207,35 +221,42 @@ NMAccessPoint * find_ap_on_wifi_device(NMDevice *device, const char *bssid, \
     return ap;
 }
 
-NMConnection * find_connection_on_wifi_device(NMDevice *dev, \
-                                              NMAccessPoint *ap, \
-                                              const char *con_name)
+/* Caller owns returned NMConnection* → must g_object_unref() when done */
+NMConnection *find_connection_on_wifi_device(NMDevice *dev, \
+                                             NMAccessPoint *ap, \
+                                             const char *con_name)
 {
     const GPtrArray *avail_cons;
-    gboolean name_match = FALSE;
-    NMConnection *connection = NULL;
+    gboolean name_match;
+    NMConnection *connection;
     int i;
 
     g_return_val_if_fail(NM_IS_DEVICE_WIFI(dev), NULL);
     g_return_val_if_fail(NM_IS_ACCESS_POINT(ap), NULL);
 
     avail_cons = nm_device_get_available_connections(dev);
+    name_match = FALSE;
+    connection = NULL;
+
     LOG_TRACE("Found %u available connections\n", avail_cons->len);
 
     for (i = 0; i < avail_cons->len; i++) {
-        NMConnection *avail_con = g_ptr_array_index(avail_cons, i);
-        const char   *id = nm_connection_get_id(avail_con);
+        NMConnection *avail_con;
+        const char *id;
+
+        avail_con = g_ptr_array_index(avail_cons, i);
+        id = nm_connection_get_id(avail_con);
 
         LOG_TRACE("Wi-Fi connection ID found: [%s]", id);
 
-        // Match connection name (optional)
+        /* Match connection name (optional) */
         if (con_name) {
             if (!id || strcmp(id, con_name) != 0)
                 continue;
             name_match = TRUE;
         }
 
-        // Check if connection is valid for AP
+        /* Check if connection is valid for AP */
         if (nm_access_point_connection_valid(ap, avail_con)) {
             connection = g_object_ref(avail_con);
             LOG_TRACE("Wi-Fi connection ID [%s] is valid for AP", id);
@@ -244,7 +265,8 @@ NMConnection * find_connection_on_wifi_device(NMDevice *dev, \
     }
 
     if (name_match && !connection) {
-        LOG_TRACE("Error: Connection '%s' exists but properties don't match.", con_name);
+        LOG_TRACE("Error: Connection '%s' exists but properties don't match.", \
+                  con_name);
         return NULL;
     }
 
@@ -255,18 +277,24 @@ NMConnection * find_connection_on_wifi_device(NMDevice *dev, \
  * Callback for NMDevice::notify::active-connection.
  * Useful fallback when ActiveConnection is not available in NM API.
  */
-static void
-on_device_active_connection_changed(GObject *object, GParamSpec *pspec,
-                                    gpointer user_data)
+static void on_device_active_connection_changed(GObject *object, \
+                                                GParamSpec *pspec, \
+                                                gpointer user_data)
 {
-    WifiConnectContext *ctx = (WifiConnectContext *)user_data;
-    NMDevice *device = NM_DEVICE(object);
-    NMActiveConnection *ac = nm_device_get_active_connection(device);
+    WifiConnectContext *ctx;
+    NMDevice *device;
+    NMActiveConnection *ac;
+    const char *id;
+
+    ctx = (WifiConnectContext *)user_data;
+    device = NM_DEVICE(object);
+    ac = nm_device_get_active_connection(device);
 
     if (ac) {
-        const char *id = nm_connection_get_id(
+        id = nm_connection_get_id( \
             nm_active_connection_get_connection(ac));
-        LOG_TRACE("[DEVICE] Active connection changed → %s",
+
+        LOG_TRACE("[DEVICE] Active connection changed → %s", \
                   id ? id : "(null)");
     } else {
         LOG_TRACE("[DEVICE] No active connection");
@@ -277,13 +305,17 @@ on_device_active_connection_changed(GObject *object, GParamSpec *pspec,
  * Callback for NMActiveConnection::notify::state.
  * Used to track connection state changes.
  */
-static void
-on_active_connection_state_changed(GObject *object, GParamSpec *pspec,
-                                   gpointer user_data)
+static void on_active_connection_state_changed(GObject *object, \
+                                               GParamSpec *pspec, \
+                                               gpointer user_data)
 {
-    WifiConnectContext *ctx = (WifiConnectContext *)user_data;
-    NMActiveConnection *ac = NM_ACTIVE_CONNECTION(object);
-    NMActiveConnectionState state = nm_active_connection_get_state(ac);
+    WifiConnectContext *ctx;
+    NMActiveConnection *ac;
+    NMActiveConnectionState state;
+
+    ctx = (WifiConnectContext *)user_data;
+    ac = NM_ACTIVE_CONNECTION(object);
+    state = nm_active_connection_get_state(ac);
 
     LOG_TRACE("[ACTIVE-CONNECTION] State changed → %d", state);
 
@@ -299,14 +331,19 @@ on_active_connection_state_changed(GObject *object, GParamSpec *pspec,
 /**
  * Callback for nm_client_add_and_activate_connection2_async() completion.
  */
-static void
-add_and_activate_cb(GObject *client_obj, GAsyncResult *res, gpointer user_data)
+static void add_and_activate_cb(GObject *client_obj, GAsyncResult *res, \
+                                gpointer user_data)
 {
-    WifiConnectContext *ctx = (WifiConnectContext *)user_data;
-    GError *error = NULL;
-    GVariant *out_result = NULL;
+    WifiConnectContext *ctx;
+    GError *error;
+    GVariant *out_result;
+    NMActiveConnection *ac;
 
-    NMActiveConnection *ac = nm_client_add_and_activate_connection2_finish(
+    ctx = (WifiConnectContext *)user_data;
+    error = NULL;
+    out_result = NULL;
+
+    ac = nm_client_add_and_activate_connection2_finish(
         NM_CLIENT(client_obj), res, &out_result, &error);
 
     if (error) {
@@ -340,21 +377,28 @@ void wifi_connect_flow(NMClient *client, NMDevice *dev, NMAccessPoint *ap,
                        const char *iface_name, const char *ssid,
                        const char *password)
 {
-    WifiConnectContext ctx = {0};
-    ctx.loop = g_main_loop_new(NULL, FALSE);
+    WifiConnectContext ctx;
+    NMConnection *connection;
+    NMSettingWireless *s_wifi;
+    NMSettingWirelessSecurity *s_sec;
+    NMSettingIPConfig *s_ip4;
+    NMSettingConnection *s_con;
+
+    ctx.loop = NULL;
     ctx.client = client;
     ctx.device = dev;
     ctx.done = FALSE;
+
+    ctx.loop = g_main_loop_new(NULL, FALSE);
 
     /* Listen for device active-connection change */
     g_signal_connect(dev, "notify::active-connection",
                      G_CALLBACK(on_device_active_connection_changed), &ctx);
 
     /* Build in-memory NMConnection object */
-    NMConnection *connection = nm_simple_connection_new();
+    connection = nm_simple_connection_new();
 
-    NMSettingWireless *s_wifi =
-        (NMSettingWireless *)nm_setting_wireless_new();
+    s_wifi = (NMSettingWireless *)nm_setting_wireless_new();
     g_object_set(G_OBJECT(s_wifi),
                  NM_SETTING_WIRELESS_SSID, nm_access_point_get_ssid(ap),
                  NM_SETTING_WIRELESS_MODE, "infrastructure",
@@ -362,8 +406,8 @@ void wifi_connect_flow(NMClient *client, NMDevice *dev, NMAccessPoint *ap,
     nm_connection_add_setting(connection, NM_SETTING(s_wifi));
 
     if (password && strlen(password) > 0) {
-        NMSettingWirelessSecurity *s_sec =
-            (NMSettingWirelessSecurity *)nm_setting_wireless_security_new();
+        s_sec = (NMSettingWirelessSecurity *)
+                nm_setting_wireless_security_new();
         g_object_set(G_OBJECT(s_sec),
                      NM_SETTING_WIRELESS_SECURITY_KEY_MGMT, "wpa-psk",
                      NM_SETTING_WIRELESS_SECURITY_PSK, password,
@@ -371,15 +415,13 @@ void wifi_connect_flow(NMClient *client, NMDevice *dev, NMAccessPoint *ap,
         nm_connection_add_setting(connection, NM_SETTING(s_sec));
     }
 
-    NMSettingIPConfig *s_ip4 =
-        (NMSettingIPConfig *)nm_setting_ip4_config_new();
+    s_ip4 = (NMSettingIPConfig *)nm_setting_ip4_config_new();
     g_object_set(G_OBJECT(s_ip4),
                  NM_SETTING_IP_CONFIG_METHOD, "auto",
                  NULL);
     nm_connection_add_setting(connection, NM_SETTING(s_ip4));
 
-    NMSettingConnection *s_con =
-        (NMSettingConnection *)nm_setting_connection_new();
+    s_con = (NMSettingConnection *)nm_setting_connection_new();
     g_object_set(G_OBJECT(s_con),
                  NM_SETTING_CONNECTION_TYPE, NM_SETTING_WIRELESS_SETTING_NAME,
                  NM_SETTING_CONNECTION_INTERFACE_NAME, iface_name,
@@ -414,15 +456,23 @@ void wifi_connect_flow(NMClient *client, NMDevice *dev, NMAccessPoint *ap,
 int wifi_connect_to_ssid(const char *iface_name, const char *ssid,
                          const char *password)
 {
-    NMClient *client = get_nm_client();
+    NMClient *client;
+    NMDevice *dev;
+    NMAccessPoint *ap;
 
-    NMDevice *dev = g_nm_device_get_by_iface(iface_name);
+    client = get_nm_client();
+    if (!client) {
+        LOG_ERROR("Failed to get NMClient");
+        return EXIT_FAILURE;
+    }
+
+    dev = g_nm_device_get_by_iface(iface_name);
     if (!dev) {
         LOG_ERROR("Device %s not found", iface_name);
         return EXIT_FAILURE;
     }
 
-    NMAccessPoint *ap = find_ap_on_wifi_device(dev, NULL, ssid, FALSE);
+    ap = find_ap_on_wifi_device(dev, NULL, ssid, FALSE);
     if (!ap) {
         LOG_ERROR("SSID '%s' not found on device '%s'", ssid, iface_name);
         return EXIT_FAILURE;
