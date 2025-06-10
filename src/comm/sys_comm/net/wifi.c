@@ -201,29 +201,29 @@ NMConnection * find_connection_on_wifi_device(NMDevice *dev, \
 static void add_and_activate_cb(GObject *client, GAsyncResult *result, \
                                 gpointer user_data)
 {
+    GMainLoop *loop = (GMainLoop *)user_data;
     GError *error = NULL;
     GVariant *out_result = NULL;
 
-    NMActiveConnection *ac = nm_client_add_and_activate_connection2_finish(\
-                                NM_CLIENT(client), result, &out_result, &error);
+    NMActiveConnection *active_conn = \
+        nm_client_add_and_activate_connection2_finish(NM_CLIENT(client), \
+                                                      result, \
+                                                      &out_result, \
+                                                      &error);
 
     if (error) {
-        LOG_ERROR("Failed to activate connection (async): %s", \
-                  error->message);
+        LOG_TRACE("Failed to activate connection: %s", error->message);
         g_error_free(error);
-        return;
+    } else {
+        LOG_TRACE("Successfully activated connection!");
     }
 
-    LOG_INFO("Successfully activating connection (NMActiveConnection=%p)", ac);
-
-    if (out_result) {
-        gchar *out_str = g_variant_print(out_result, TRUE);
-        LOG_TRACE("Out result: %s", out_str);
-        g_free(out_str);
+    if (out_result)
         g_variant_unref(out_result);
-    }
 
-    g_object_unref(ac);
+    //--------------------------------------------------------------------------
+    g_main_loop_quit(loop);
+    //--------------------------------------------------------------------------
 }
 
 
@@ -281,6 +281,12 @@ int wifi_connect_to_ssid(const char *iface_name, const char *ssid, const char *p
                  NULL);
     nm_connection_add_setting(connection, NM_SETTING(s_con));
 
+    //--------------------------------------------------------------------------
+    GMainContext *context = g_main_context_new();
+    GMainLoop    *loop    = g_main_loop_new(context, FALSE);
+    g_main_context_push_thread_default(context);
+    //--------------------------------------------------------------------------
+
     GError *error = NULL;
     GVariant *options = NULL;
     nm_client_add_and_activate_connection2(client,
@@ -290,9 +296,16 @@ int wifi_connect_to_ssid(const char *iface_name, const char *ssid, const char *p
                                            options,
                                            NULL,
                                            add_and_activate_cb,
-                                           &error);
+                                           loop);
 
     LOG_INFO("Initiated connection to SSID '%s' on interface '%s'", ssid, iface_name);
+
+    //--------------------------------------------------------------------------
+    g_main_loop_run(loop);
+    g_main_context_pop_thread_default(context);
+    g_main_loop_unref(loop);
+    g_main_context_unref(context);
+    //--------------------------------------------------------------------------
 
     // Release temporary refs
     g_object_unref(connection);
