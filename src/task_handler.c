@@ -26,11 +26,13 @@ void * main_task_handler(void* arg)
 
 /******************************************************************************/
         LOG_INFO("#############################################");
-        // wifi_connected_ap_get("wlu1u3i2");
-        wifi_scan_and_get_results("wlu1u3i2", 1);
+        // wifi_is_connected_to_ssid("wlu1u3i2", "Danh P3");
+        // wifi_list_access_points("wlu1u3i2");
         // g_nm_device_get_by_iface("wlu1u3i2");
         // disconnect_interface("wlu1u3i2");
-        wifi_connect_to_ssid("wlu1u3i2", "Danh P3", "10110100101");
+        // wifi_connect_to_ssid("wlu1u3i2", "Danh P3", "10110100101");
+        wifi_connect_to_ssid("wlu1u3i2", "Phuong Nguyen iP", "phuongnguyen");
+        // wifi_disconnect_device("wlu1u3i2");
         LOG_INFO("#############################################");
 /******************************************************************************/
 
