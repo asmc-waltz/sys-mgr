@@ -7,7 +7,10 @@
 #define G_DBUS_COMM_H
 
 #include <stdint.h>
+#include <stdbool.h>
 #include <dbus/dbus.h>
+
+#include <log.h>
 
 #define SYS_MGR_DBUS_SER                "com.SystemManager.Service"
 #define SYS_MGR_DBUS_OBJ_PATH           "/com/SystemManager/Obj/SysCmd"
@@ -18,6 +21,76 @@
 #define UI_DBUS_OBJ_PATH                "/com/TerminalUI/Obj/UsrCmd"
 #define UI_DBUS_IFACE                   "com.TerminalUI.Interface"
 #define UI_DBUS_SIG                     "UISig"
+
+/* Go001 DBus message frame
+    STRUCT {
+        STRING   component_id;
+        INT32    topic_id;
+        INT32    opcode;
+
+        ARRAY of STRUCT {
+            STRING key;
+            INT32  data_type;
+            INT32  data_length;
+            VARIANT data;
+        }
+    }
+ */
+
+typedef enum {
+    COMP_ID_NONE = 0,
+    COMP_ID_SYS_MGR,
+    COMP_ID_TERM_UI,
+} component_id_t;
+
+typedef enum {
+    TPC_ID_NONE = 0,
+    OP_ID_NET,
+} topic_id_t;
+
+typedef enum {
+    OP_ID_NONE = 0,
+    /* Common API */
+    OP_ID_PING,
+    /* Network API */
+    OP_ID_WIFI_RESCAN,
+    OP_ID_WIFI_GET_AP_LIST,
+    OP_ID_WIFI_GET_AP_INFO,
+    OP_ID_WIFI_CONN_AP,
+} opcode_t;
+
+#define MAX_ENTRIES 32
+
+// Union for holding the actual variant value
+typedef union {
+    const char *str;     // String value
+    int32_t i32;         // Signed 32-bit integer
+    uint32_t u32;        // Unsigned 32-bit integer
+    double dbl;          // Double-precision float
+} VariantValue;
+
+// One entry in the payload array
+typedef struct {
+    const char *key;         // Entry key name
+    int32_t data_type;       // DBus data type code (e.g., DBUS_TYPE_STRING)
+    int32_t data_length;     // Data length (used if type is array/string)
+    VariantValue value;      // Actual value
+} PayloadEntry;
+
+// Top-level data frame structure
+typedef struct {
+    const char *component_id;    // Identifier of the sender
+    int32_t topic_id;            // Topic ID
+    int32_t opcode;              // Operation code
+    int32_t entry_count;         // Number of entries in the payload
+    PayloadEntry entries[MAX_ENTRIES]; // Payload entries
+} DataFrame;
+
+// Encode DataFrame into DBusMessage
+bool encode_data_frame(DBusMessage *msg, const DataFrame *frame);
+
+// Decode DBusMessage into DataFrame
+bool decode_data_frame(DBusMessage *msg, DataFrame *out);
 
 int init_event_file();
 void event_set(int evfd, uint64_t code);

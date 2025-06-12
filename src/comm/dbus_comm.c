@@ -6,6 +6,9 @@
 #include <signal.h>
 #include <sys/eventfd.h>
 #include <inttypes.h>
+#include <stdbool.h>
+
+#include <dbus/dbus.h>
 
 #include <log.h>
 #include <sys_mgr.h>
@@ -15,6 +18,153 @@
 #define MAX_EVENTS 2
 extern volatile sig_atomic_t g_run;
 extern int event_fd;
+
+// Encode DataFrame into an existing DBusMessage
+bool encode_data_frame(DBusMessage *msg, const DataFrame *frame)
+{
+    DBusMessageIter iter, array_iter, struct_iter, variant_iter;
+
+    dbus_message_iter_init_append(msg, &iter);
+
+    dbus_message_iter_append_basic(&iter, DBUS_TYPE_STRING, &frame->component_id);
+    dbus_message_iter_append_basic(&iter, DBUS_TYPE_INT32, &frame->topic_id);
+    dbus_message_iter_append_basic(&iter, DBUS_TYPE_INT32, &frame->opcode);
+
+    dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "(siiv)", &array_iter);
+
+    for (int i = 0; i < frame->entry_count; ++i) {
+        PayloadEntry *entry = &frame->entries[i];
+
+        dbus_message_iter_open_container(&array_iter, DBUS_TYPE_STRUCT, NULL, &struct_iter);
+
+        dbus_message_iter_append_basic(&struct_iter, DBUS_TYPE_STRING, &entry->key);
+        dbus_message_iter_append_basic(&struct_iter, DBUS_TYPE_INT32, &entry->data_type);
+        dbus_message_iter_append_basic(&struct_iter, DBUS_TYPE_INT32, &entry->data_length);
+
+        const char *sig = NULL;
+        switch (entry->data_type) {
+            case DBUS_TYPE_STRING: sig = "s"; break;
+            case DBUS_TYPE_INT32:  sig = "i"; break;
+            case DBUS_TYPE_UINT32: sig = "u"; break;
+            case DBUS_TYPE_DOUBLE: sig = "d"; break;
+            default:
+                LOG_ERROR("Unsupported data_type %d for key '%s'", entry->data_type, entry->key);
+                return false;
+        }
+
+        dbus_message_iter_open_container(&struct_iter, DBUS_TYPE_VARIANT, sig, &variant_iter);
+
+        switch (entry->data_type) {
+            case DBUS_TYPE_STRING:
+                dbus_message_iter_append_basic(&variant_iter, DBUS_TYPE_STRING, &entry->value.str);
+                break;
+            case DBUS_TYPE_INT32:
+                dbus_message_iter_append_basic(&variant_iter, DBUS_TYPE_INT32, &entry->value.i32);
+                break;
+            case DBUS_TYPE_UINT32:
+                dbus_message_iter_append_basic(&variant_iter, DBUS_TYPE_UINT32, &entry->value.u32);
+                break;
+            case DBUS_TYPE_DOUBLE:
+                dbus_message_iter_append_basic(&variant_iter, DBUS_TYPE_DOUBLE, &entry->value.dbl);
+                break;
+        }
+
+        dbus_message_iter_close_container(&struct_iter, &variant_iter);
+        dbus_message_iter_close_container(&array_iter, &struct_iter);
+    }
+
+    dbus_message_iter_close_container(&iter, &array_iter);
+    return true;
+}
+
+// Decode DBusMessage into DataFrame
+bool decode_data_frame(DBusMessage *msg, DataFrame *out)
+{
+    DBusMessageIter iter, array_iter, struct_iter, variant_iter;
+
+    if (!dbus_message_iter_init(msg, &iter)) {
+        LOG_ERROR("Failed to init DBus iterator");
+        return false;
+    }
+
+    dbus_message_iter_get_basic(&iter, &out->component_id);
+    dbus_message_iter_next(&iter);
+
+    dbus_message_iter_get_basic(&iter, &out->topic_id);
+    dbus_message_iter_next(&iter);
+
+    dbus_message_iter_get_basic(&iter, &out->opcode);
+    dbus_message_iter_next(&iter);
+
+    dbus_message_iter_recurse(&iter, &array_iter);
+
+    int i = 0;
+    while (dbus_message_iter_get_arg_type(&array_iter) == DBUS_TYPE_STRUCT && i < MAX_ENTRIES) {
+        PayloadEntry *entry = &out->entries[i];
+        dbus_message_iter_recurse(&array_iter, &struct_iter);
+
+        dbus_message_iter_get_basic(&struct_iter, &entry->key);
+        dbus_message_iter_next(&struct_iter);
+
+        dbus_message_iter_get_basic(&struct_iter, &entry->data_type);
+        dbus_message_iter_next(&struct_iter);
+
+        dbus_message_iter_get_basic(&struct_iter, &entry->data_length);
+        dbus_message_iter_next(&struct_iter);
+
+        dbus_message_iter_recurse(&struct_iter, &variant_iter);
+
+        switch (entry->data_type) {
+            case DBUS_TYPE_STRING:
+                dbus_message_iter_get_basic(&variant_iter, &entry->value.str);
+                break;
+            case DBUS_TYPE_INT32:
+                dbus_message_iter_get_basic(&variant_iter, &entry->value.i32);
+                break;
+            case DBUS_TYPE_UINT32:
+                dbus_message_iter_get_basic(&variant_iter, &entry->value.u32);
+                break;
+            case DBUS_TYPE_DOUBLE:
+                dbus_message_iter_get_basic(&variant_iter, &entry->value.dbl);
+                break;
+            default:
+                LOG_WARN("Unsupported type %d for entry %d", entry->data_type, i);
+                break;
+        }
+
+        dbus_message_iter_next(&array_iter);
+        i++;
+    }
+
+    out->entry_count = i;
+    return true;
+}
+
+void handle_received_message(DBusMessage *msg) {
+    DataFrame frame;
+    if (!decode_data_frame(msg, &frame)) {
+        LOG_ERROR("Failed to decode received DataFrame");
+        return;
+    }
+
+    LOG_INFO("Received frame from component: %s", frame.component_id);
+    LOG_INFO("Topic: %d, Opcode: %d", frame.topic_id, frame.opcode);
+
+    for (int i = 0; i < frame.entry_count; ++i) {
+        PayloadEntry *entry = &frame.entries[i];
+        LOG_INFO("Key: %s, Type: %c", entry->key, entry->data_type);
+        switch (entry->data_type) {
+            case DBUS_TYPE_STRING:
+                LOG_INFO("Value (string): %s", entry->value.str);
+                break;
+            case DBUS_TYPE_INT32:
+                LOG_INFO("Value (int): %d", entry->value.i32);
+                break;
+            default:
+                LOG_WARN("Unsupported type: %c", entry->data_type);
+        }
+    }
+}
 
 void parse_dbus_iter(DBusMessageIter* iter, int indent);
 
@@ -160,7 +310,8 @@ int dbus_event_handler(DBusConnection *conn)
         if (dbus_message_is_method_call(msg, \
                                         SYS_MGR_DBUS_IFACE, \
                                         SYS_MGR_DBUS_METH)) {
-            handle_message(msg);
+            // handle_message(msg);
+            handle_received_message(msg);
 
             DBusMessage *reply;
             DBusMessageIter args;
