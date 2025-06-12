@@ -16,7 +16,7 @@ void * main_task_handler(void* arg)
     LOG_INFO("Task handler is running...");
     while (g_run) {
         usleep(200000);
-        LOG_DEBUG("Task handler is waiting for new task...");
+        LOG_DEBUG("[Task handler] --> waiting for new task...");
         w = pop_work_wait();
         if (w == NULL) {
             LOG_INFO("Task handler is exiting...");
