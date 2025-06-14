@@ -6,8 +6,8 @@
 #include <log.h>
 #include <dbus_comm.h>
 
-// Encode DataFrame into an existing DBusMessage
-bool encode_data_frame(DBusMessage *msg, const DataFrame *frame)
+// Encode data_frame_t into an existing DBusMessage
+bool encode_data_frame(DBusMessage *msg, const data_frame_t *frame)
 {
     DBusMessageIter iter, array_iter, struct_iter, variant_iter;
 
@@ -20,7 +20,7 @@ bool encode_data_frame(DBusMessage *msg, const DataFrame *frame)
     dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "(siiv)", &array_iter);
 
     for (int i = 0; i < frame->entry_count; ++i) {
-        PayloadEntry *entry = &frame->entries[i];
+        payload_t *entry = &frame->entries[i];
 
         dbus_message_iter_open_container(&array_iter, DBUS_TYPE_STRUCT, NULL, &struct_iter);
 
@@ -64,8 +64,8 @@ bool encode_data_frame(DBusMessage *msg, const DataFrame *frame)
     return true;
 }
 
-// Decode DBusMessage into DataFrame
-bool decode_data_frame(DBusMessage *msg, DataFrame *out)
+// Decode DBusMessage into data_frame_t
+bool decode_data_frame(DBusMessage *msg, data_frame_t *out)
 {
     DBusMessageIter iter, array_iter, struct_iter, variant_iter;
 
@@ -87,7 +87,7 @@ bool decode_data_frame(DBusMessage *msg, DataFrame *out)
 
     int i = 0;
     while (dbus_message_iter_get_arg_type(&array_iter) == DBUS_TYPE_STRUCT && i < MAX_ENTRIES) {
-        PayloadEntry *entry = &out->entries[i];
+        payload_t *entry = &out->entries[i];
         dbus_message_iter_recurse(&array_iter, &struct_iter);
 
         dbus_message_iter_get_basic(&struct_iter, &entry->key);
@@ -128,7 +128,7 @@ bool decode_data_frame(DBusMessage *msg, DataFrame *out)
 }
 
 // Create a method frame to send via method call
-void create_method_frame(DataFrame *frame)
+void create_method_frame(data_frame_t *frame)
 {
     frame->component_id = "terminal-ui";
     frame->topic_id = 1001;
@@ -147,7 +147,7 @@ void create_method_frame(DataFrame *frame)
 }
 
 // Create a sample frame to send as a signal
-void create_signal_frame(DataFrame *frame)
+void create_signal_frame(data_frame_t *frame)
 {
     frame->component_id = "terminal-ui";
     frame->topic_id = 1001;
@@ -165,14 +165,14 @@ void create_signal_frame(DataFrame *frame)
     frame->entries[1].value.i32 = 31;
 }
 
-// Send a DBus method call with encoded DataFrame
+// Send a DBus method call with encoded data_frame_t
 int send_method_call(DBusConnection *conn)
 {
     DBusMessage *msg;
     DBusPendingCall *pending;
     DBusMessage *reply;
     DBusMessageIter reply_args;
-    DataFrame frame;
+    data_frame_t frame;
     int ret = EXIT_SUCCESS;
 
     msg = dbus_message_new_method_call(SYS_MGR_DBUS_SER,
@@ -226,11 +226,11 @@ int send_method_call(DBusConnection *conn)
     return ret;
 }
 
-// Send a DBus signal with encoded DataFrame
+// Send a DBus signal with encoded data_frame_t
 int send_signal(DBusConnection *conn)
 {
     DBusMessage *msg;
-    DataFrame frame;
+    data_frame_t frame;
 
     msg = dbus_message_new_signal(UI_DBUS_OBJ_PATH,
                                   UI_DBUS_IFACE,

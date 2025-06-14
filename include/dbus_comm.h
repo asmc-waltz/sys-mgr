@@ -67,15 +67,15 @@ typedef union {
     int32_t i32;         // Signed 32-bit integer
     uint32_t u32;        // Unsigned 32-bit integer
     double dbl;          // Double-precision float
-} VariantValue;
+} variant_val_t;
 
 // One entry in the payload array
 typedef struct {
     const char *key;         // Entry key name
     int32_t data_type;       // DBus data type code (e.g., DBUS_TYPE_STRING)
     int32_t data_length;     // Data length (used if type is array/string)
-    VariantValue value;      // Actual value
-} PayloadEntry;
+    variant_val_t value;      // Actual value
+} payload_t;
 
 // Top-level data frame structure
 typedef struct {
@@ -83,18 +83,14 @@ typedef struct {
     int32_t topic_id;            // Topic ID
     int32_t opcode;              // Operation code
     int32_t entry_count;         // Number of entries in the payload
-    PayloadEntry entries[MAX_ENTRIES]; // Payload entries
-} DataFrame;
+    payload_t entries[MAX_ENTRIES]; // Payload entries
+} data_frame_t;
 
-// Encode DataFrame into DBusMessage
-bool encode_data_frame(DBusMessage *msg, const DataFrame *frame);
+// Encode data_frame_t into DBusMessage
+bool encode_data_frame(DBusMessage *msg, const data_frame_t *frame);
 
-// Decode DBusMessage into DataFrame
-bool decode_data_frame(DBusMessage *msg, DataFrame *out);
-
-int init_event_file();
-void event_set(int evfd, uint64_t code);
-uint64_t event_get(int evfd);
+// Decode DBusMessage into data_frame_t
+bool decode_data_frame(DBusMessage *msg, data_frame_t *out);
 
 DBusConnection * setup_dbus();
 void* dbus_listen_thread(void* arg);

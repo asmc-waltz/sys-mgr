@@ -13,14 +13,15 @@
 #include <log.h>
 #include <sys_mgr.h>
 #include <dbus_comm.h>
+#include <sys_comm.h>
 #include <workqueue.h>
 
 #define MAX_EVENTS 2
 extern volatile sig_atomic_t g_run;
 extern int event_fd;
 
-// Encode DataFrame into an existing DBusMessage
-bool encode_data_frame(DBusMessage *msg, const DataFrame *frame)
+// Encode data_frame_t into an existing DBusMessage
+bool encode_data_frame(DBusMessage *msg, const data_frame_t *frame)
 {
     DBusMessageIter iter, array_iter, struct_iter, variant_iter;
 
@@ -33,7 +34,7 @@ bool encode_data_frame(DBusMessage *msg, const DataFrame *frame)
     dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "(siiv)", &array_iter);
 
     for (int i = 0; i < frame->entry_count; ++i) {
-        PayloadEntry *entry = &frame->entries[i];
+        payload_t *entry = &frame->entries[i];
 
         dbus_message_iter_open_container(&array_iter, DBUS_TYPE_STRUCT, NULL, &struct_iter);
 
@@ -77,8 +78,8 @@ bool encode_data_frame(DBusMessage *msg, const DataFrame *frame)
     return true;
 }
 
-// Decode DBusMessage into DataFrame
-bool decode_data_frame(DBusMessage *msg, DataFrame *out)
+// Decode DBusMessage into data_frame_t
+bool decode_data_frame(DBusMessage *msg, data_frame_t *out)
 {
     DBusMessageIter iter, array_iter, struct_iter, variant_iter;
 
@@ -100,7 +101,7 @@ bool decode_data_frame(DBusMessage *msg, DataFrame *out)
 
     int i = 0;
     while (dbus_message_iter_get_arg_type(&array_iter) == DBUS_TYPE_STRUCT && i < MAX_ENTRIES) {
-        PayloadEntry *entry = &out->entries[i];
+        payload_t *entry = &out->entries[i];
         dbus_message_iter_recurse(&array_iter, &struct_iter);
 
         dbus_message_iter_get_basic(&struct_iter, &entry->key);
@@ -141,9 +142,9 @@ bool decode_data_frame(DBusMessage *msg, DataFrame *out)
 }
 
 void handle_received_message(DBusMessage *msg) {
-    DataFrame frame;
+    data_frame_t frame;
     if (!decode_data_frame(msg, &frame)) {
-        LOG_ERROR("Failed to decode received DataFrame");
+        LOG_ERROR("Failed to decode received data_frame_t");
         return;
     }
 
@@ -151,7 +152,7 @@ void handle_received_message(DBusMessage *msg) {
     LOG_INFO("Topic: %d, Opcode: %d", frame.topic_id, frame.opcode);
 
     for (int i = 0; i < frame.entry_count; ++i) {
-        PayloadEntry *entry = &frame.entries[i];
+        payload_t *entry = &frame.entries[i];
         LOG_INFO("Key: %s, Type: %c", entry->key, entry->data_type);
         switch (entry->data_type) {
             case DBUS_TYPE_STRING:
