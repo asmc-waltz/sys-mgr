@@ -37,8 +37,7 @@ void * main_task_handler(void* arg)
 /******************************************************************************/
 
         LOG_TRACE("Task done: %d", w->cmd->opcode);
-        free(w->cmd);
-        free(w);
+        delete_work(w);
     };
 
     LOG_INFO("Task handler thread exiting...");

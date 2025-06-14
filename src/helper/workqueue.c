@@ -14,19 +14,42 @@ static workqueue_t g_wqueue = {
     .cond = PTHREAD_COND_INITIALIZER
 };
 
-work_t * create_work(cmd_data_t *cmd)
+work_t *create_work(cmd_data_t *cmd)
 {
-    work_t *w = NULL;
+	work_t *work;
 
-    w = malloc(sizeof(work_t));
-    if (w == NULL || cmd == NULL) {
-        return NULL;
-    }
+	if (!cmd)
+		return NULL;
 
-    w->cmd = cmd;
-    LOG_TRACE("work is created for cmd opcode: %d", w->cmd->opcode);
+	work = malloc(sizeof(*work));
+	if (!work)
+		return NULL;
 
-    return w;
+	work->cmd = cmd;
+	LOG_TRACE("Created work for opcode: %d", cmd->opcode);
+
+	return work;
+}
+
+void delete_work(work_t *work)
+{
+	cmd_data_t *cmd;
+
+	if (!work) {
+		LOG_WARN("Unable to delete work: null work pointer");
+		return;
+	}
+
+	cmd = work->cmd;
+	if (!cmd) {
+		LOG_WARN("Unable to delete work: null cmd pointer");
+		free(work);
+		return;
+	}
+
+	LOG_TRACE("Deleting work for opcode: %d", cmd->opcode);
+	free(cmd);
+	free(work);
 }
 
 void push_work(work_t *w) {
