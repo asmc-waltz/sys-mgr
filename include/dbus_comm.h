@@ -72,17 +72,17 @@ typedef union {
 // One entry in the payload array
 typedef struct {
     const char *key;         // Entry key name
-    int32_t data_type;       // DBus data type code (e.g., DBUS_TYPE_STRING)
-    int32_t data_length;     // Data length (used if type is array/string)
+    uint32_t data_type;       // DBus data type code (e.g., DBUS_TYPE_STRING)
+    uint32_t data_length;     // Data length (used if type is array/string)
     variant_val_t value;      // Actual value
 } payload_t;
 
 // Top-level data frame structure
 typedef struct {
     const char *component_id;    // Identifier of the sender
-    int32_t topic_id;            // Topic ID
-    int32_t opcode;              // Operation code
-    int32_t entry_count;         // Number of entries in the payload
+    uint32_t topic_id;            // Topic ID
+    uint32_t opcode;              // Operation code
+    uint32_t entry_count;         // Number of entries in the payload
     payload_t entries[MAX_ENTRIES]; // Payload entries
 } data_frame_t;
 
