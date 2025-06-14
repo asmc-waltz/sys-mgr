@@ -21,7 +21,7 @@ work_t *create_work(cmd_data_t *cmd)
 	if (!cmd)
 		return NULL;
 
-	work = malloc(sizeof(*work));
+	work = calloc(1, sizeof(*work));
 	if (!work)
 		return NULL;
 

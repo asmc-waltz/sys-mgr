@@ -20,6 +20,28 @@
 extern volatile sig_atomic_t g_run;
 extern int event_fd;
 
+cmd_data_t *create_cmd(void)
+{
+	cmd_data_t *cmd;
+
+	cmd = calloc(1, sizeof(*cmd));
+	if (!cmd) {
+		return NULL;
+	}
+
+	return cmd;
+}
+
+void delete_cmd(cmd_data_t *cmd)
+{
+	if (!cmd) {
+		LOG_WARN("Unable to delete cmd: null pointer");
+		return;
+	}
+
+	free(cmd);
+}
+
 // Encode cmd_data_t into an existing DBusMessage
 bool encode_data_frame(DBusMessage *msg, const cmd_data_t *cmd)
 {
@@ -141,94 +163,120 @@ bool decode_data_frame(DBusMessage *msg, cmd_data_t *out)
     return true;
 }
 
-cmd_data_t * handle_received_message(DBusMessage *msg) {
-    cmd_data_t *cmd = NULL;
+int dispatch_cmd_from_message(DBusMessage *msg)
+{
+	cmd_data_t *cmd;
+	work_t *work;
+	int i;
 
-    cmd = (cmd_data_t *)calloc(1, sizeof(cmd_data_t));
-    if (!cmd) {
-        LOG_ERROR("Failed to allocate memory for command data");
-        return NULL;
-    }
+	cmd = create_cmd();
+	if (!cmd) {
+		LOG_ERROR("Failed to allocate memory for cmd_data");
+		return -ENOMEM;
+	}
 
-    if (!decode_data_frame(msg, cmd)) {
-        free(cmd);
-        LOG_ERROR("Failed to decode received cmd_data_t");
-        return NULL;
-    }
+	if (!decode_data_frame(msg, cmd)) {
+		LOG_ERROR("Failed to decode DBus message");
+		delete_cmd(cmd);
+		return -EINVAL;
+	}
 
-    LOG_INFO("Received frame from component: %s", cmd->component_id);
-    LOG_INFO("Topic: %d, Opcode: %d", cmd->topic_id, cmd->opcode);
+	LOG_INFO("Received frame from component: %s", cmd->component_id);
+	LOG_INFO("Topic: %d, Opcode: %d", cmd->topic_id, cmd->opcode);
 
-    for (int i = 0; i < cmd->entry_count; ++i) {
-        payload_t *entry = &cmd->entries[i];
-        LOG_INFO("Key: %s, Type: %c", entry->key, entry->data_type);
-        switch (entry->data_type) {
-            case DBUS_TYPE_STRING:
-                LOG_INFO("Value (string): %s", entry->value.str);
-                break;
-            case DBUS_TYPE_INT32:
-                LOG_INFO("Value (int): %d", entry->value.i32);
-                break;
-            default:
-                LOG_WARN("Unsupported type: %c", entry->data_type);
-        }
-    }
+	for (i = 0; i < cmd->entry_count; ++i) {
+		payload_t *entry = &cmd->entries[i];
+		LOG_INFO("Key: %s, Type: %c", entry->key, entry->data_type);
+		switch (entry->data_type) {
+		case DBUS_TYPE_STRING:
+			LOG_INFO("Value (string): %s", entry->value.str);
+			break;
+		case DBUS_TYPE_INT32:
+			LOG_INFO("Value (int): %d", entry->value.i32);
+			break;
+		default:
+			LOG_WARN("Unsupported type: %c", entry->data_type);
+			break;
+		}
+	}
 
-    return cmd;
+	work = create_work(cmd);
+	if (!work) {
+		LOG_ERROR("Failed to create work from cmd");
+		delete_cmd(cmd);
+		return -ENOMEM;
+	}
+
+	push_work(work);
+	return 0;
 }
 
 int dbus_event_handler(DBusConnection *conn)
 {
-    DBusMessage *msg = NULL;
-    cmd_data_t *cmd;
-    work_t *w = NULL;
+	DBusMessage *msg;
+	DBusMessage *reply;
+	DBusMessageIter args;
+	const char *reply_str = "Method reply OK";
+	int ret;
 
-    while (dbus_connection_read_write_dispatch(conn, 0)) {
-        msg = dbus_connection_pop_message(conn);
-        if (msg == NULL) {
-            usleep(10000);
-            continue;
-        }
+	msg = NULL;
+	reply = NULL;
 
-        if (dbus_message_is_method_call(msg, \
-                                        SYS_MGR_DBUS_IFACE, \
-                                        SYS_MGR_DBUS_METH)) {
-            cmd = handle_received_message(msg);
-            // TODO: Handle cmd from message
+	while (dbus_connection_read_write_dispatch(conn, 0)) {
+		msg = dbus_connection_pop_message(conn);
+		if (!msg) {
+			usleep(10000);
+			continue;
+		}
 
-            DBusMessage *reply;
-            DBusMessageIter args;
-            reply = dbus_message_new_method_return(msg);
-            dbus_message_iter_init_append(reply, &args);
-            const char *reply_str = "Method reply OK";
-            dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &reply_str);
-            dbus_connection_send(conn, reply, NULL);
-            dbus_message_unref(reply);
-        } else if (dbus_message_is_signal(msg, \
-                                          UI_DBUS_IFACE, \
-                                          UI_DBUS_SIG)) {
-            cmd = handle_received_message(msg);
-            if (!cmd) {
-                LOG_ERROR("Unable to handle message");
-            }
+		if (dbus_message_get_type(msg) == DBUS_MESSAGE_TYPE_METHOD_CALL) {
+			const char *iface = dbus_message_get_interface(msg);
+			const char *member = dbus_message_get_member(msg);
 
-            w = create_work(cmd);
+			if (iface && member && \
+			    strcmp(iface, SYS_MGR_DBUS_IFACE) == 0 && \
+			    strcmp(member, SYS_MGR_DBUS_METH) == 0) {
+				ret = dispatch_cmd_from_message(msg);
+				if (ret < 0) {
+					LOG_ERROR("Dispatch failed: iface=%s, meth=%s",
+						  iface, member);
+					reply = dbus_message_new_error(msg,
+								       DBUS_ERROR_FAILED,
+								       "Dispatch failed");
+				} else {
+					reply = dbus_message_new_method_return(msg);
+					dbus_message_iter_init_append(reply, &args);
+					dbus_message_iter_append_basic(&args,
+								       DBUS_TYPE_STRING,
+								       &reply_str);
+				}
 
-            // TODO: Handle cmd from message
+				if (reply) {
+					dbus_connection_send(conn, reply, NULL);
+					dbus_message_unref(reply);
+				}
+			}
 
-            // work_t *w = malloc(sizeof(work_t));
-            // w->opcode = 10;
-            // snprintf(w->data, sizeof(w->data), "Message #%d", w->opcode);
+		} else if (dbus_message_get_type(msg) == DBUS_MESSAGE_TYPE_SIGNAL) {
+			const char *iface = dbus_message_get_interface(msg);
+			const char *member = dbus_message_get_member(msg);
 
-            push_work(w);
-            LOG_DEBUG("[DBus Thread] Pushed job %d", w->cmd->opcode);
-        }
+			if (iface && member && \
+			    strcmp(iface, UI_DBUS_IFACE) == 0 && \
+			    strcmp(member, UI_DBUS_SIG) == 0) {
+				ret = dispatch_cmd_from_message(msg);
+				if (ret < 0)
+					LOG_ERROR("Dispatch signal failed: %s.%s",
+						  iface, member);
+			}
+		}
 
-        dbus_message_unref(msg);
-        break;
-     }
+		dbus_message_unref(msg);
+		break;
+	}
+
+	return 0;
 }
-
 
 int add_dbus_match_rule(DBusConnection *conn, const char *rule)
 {
@@ -258,7 +306,7 @@ DBusConnection * setup_dbus()
     int ret = 0;
 
     dbus_error_init(&err);
-    conn = dbus_bus_get(DBUS_BUS_SYSTEM, &err);
+    conn = dbus_bus_get(DBUS_BUS_SESSION, &err);
     if (dbus_error_is_set(&err)) {
         LOG_ERROR("DBus connection Error: %s", err.message);
         dbus_error_free(&err);
