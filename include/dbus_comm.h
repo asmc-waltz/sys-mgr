@@ -84,13 +84,13 @@ typedef struct {
     uint32_t opcode;              // Operation code
     uint32_t entry_count;         // Number of entries in the payload
     payload_t entries[MAX_ENTRIES]; // Payload entries
-} data_frame_t;
+} cmd_data_t;
 
-// Encode data_frame_t into DBusMessage
-bool encode_data_frame(DBusMessage *msg, const data_frame_t *frame);
+// Encode cmd_data_t into DBusMessage
+bool encode_data_frame(DBusMessage *msg, const cmd_data_t *frame);
 
-// Decode DBusMessage into data_frame_t
-bool decode_data_frame(DBusMessage *msg, data_frame_t *out);
+// Decode DBusMessage into cmd_data_t
+bool decode_data_frame(DBusMessage *msg, cmd_data_t *out);
 
 DBusConnection * setup_dbus();
 void* dbus_listen_thread(void* arg);

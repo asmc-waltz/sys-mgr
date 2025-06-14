@@ -20,21 +20,21 @@
 extern volatile sig_atomic_t g_run;
 extern int event_fd;
 
-// Encode data_frame_t into an existing DBusMessage
-bool encode_data_frame(DBusMessage *msg, const data_frame_t *frame)
+// Encode cmd_data_t into an existing DBusMessage
+bool encode_data_frame(DBusMessage *msg, const cmd_data_t *cmd)
 {
     DBusMessageIter iter, array_iter, struct_iter, variant_iter;
 
     dbus_message_iter_init_append(msg, &iter);
 
-    dbus_message_iter_append_basic(&iter, DBUS_TYPE_STRING, &frame->component_id);
-    dbus_message_iter_append_basic(&iter, DBUS_TYPE_INT32, &frame->topic_id);
-    dbus_message_iter_append_basic(&iter, DBUS_TYPE_INT32, &frame->opcode);
+    dbus_message_iter_append_basic(&iter, DBUS_TYPE_STRING, &cmd->component_id);
+    dbus_message_iter_append_basic(&iter, DBUS_TYPE_INT32, &cmd->topic_id);
+    dbus_message_iter_append_basic(&iter, DBUS_TYPE_INT32, &cmd->opcode);
 
     dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "(siiv)", &array_iter);
 
-    for (int i = 0; i < frame->entry_count; ++i) {
-        payload_t *entry = &frame->entries[i];
+    for (int i = 0; i < cmd->entry_count; ++i) {
+        payload_t *entry = &cmd->entries[i];
 
         dbus_message_iter_open_container(&array_iter, DBUS_TYPE_STRUCT, NULL, &struct_iter);
 
@@ -78,8 +78,8 @@ bool encode_data_frame(DBusMessage *msg, const data_frame_t *frame)
     return true;
 }
 
-// Decode DBusMessage into data_frame_t
-bool decode_data_frame(DBusMessage *msg, data_frame_t *out)
+// Decode DBusMessage into cmd_data_t
+bool decode_data_frame(DBusMessage *msg, cmd_data_t *out)
 {
     DBusMessageIter iter, array_iter, struct_iter, variant_iter;
 
@@ -141,18 +141,17 @@ bool decode_data_frame(DBusMessage *msg, data_frame_t *out)
     return true;
 }
 
-void handle_received_message(DBusMessage *msg) {
-    data_frame_t frame;
-    if (!decode_data_frame(msg, &frame)) {
-        LOG_ERROR("Failed to decode received data_frame_t");
+void handle_received_message(DBusMessage *msg, cmd_data_t *cmd) {
+    if (!decode_data_frame(msg, cmd)) {
+        LOG_ERROR("Failed to decode received cmd_data_t");
         return;
     }
 
-    LOG_INFO("Received frame from component: %s", frame.component_id);
-    LOG_INFO("Topic: %d, Opcode: %d", frame.topic_id, frame.opcode);
+    LOG_INFO("Received frame from component: %s", cmd->component_id);
+    LOG_INFO("Topic: %d, Opcode: %d", cmd->topic_id, cmd->opcode);
 
-    for (int i = 0; i < frame.entry_count; ++i) {
-        payload_t *entry = &frame.entries[i];
+    for (int i = 0; i < cmd->entry_count; ++i) {
+        payload_t *entry = &cmd->entries[i];
         LOG_INFO("Key: %s, Type: %c", entry->key, entry->data_type);
         switch (entry->data_type) {
             case DBUS_TYPE_STRING:
@@ -170,6 +169,7 @@ void handle_received_message(DBusMessage *msg) {
 int dbus_event_handler(DBusConnection *conn)
 {
     DBusMessage *msg;
+    cmd_data_t cmd;
 
     while (dbus_connection_read_write_dispatch(conn, 0)) {
         msg = dbus_connection_pop_message(conn);
@@ -181,7 +181,7 @@ int dbus_event_handler(DBusConnection *conn)
         if (dbus_message_is_method_call(msg, \
                                         SYS_MGR_DBUS_IFACE, \
                                         SYS_MGR_DBUS_METH)) {
-            handle_received_message(msg);
+            handle_received_message(msg, &cmd);
             // TODO: Handle cmd from message
 
             DBusMessage *reply;
@@ -195,7 +195,7 @@ int dbus_event_handler(DBusConnection *conn)
         } else if (dbus_message_is_signal(msg, \
                                           UI_DBUS_IFACE, \
                                           UI_DBUS_SIG)) {
-            handle_received_message(msg);
+            handle_received_message(msg, &cmd);
             // TODO: Handle cmd from message
 
             work_t *w = malloc(sizeof(work_t));

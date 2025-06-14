@@ -12,6 +12,11 @@ static workqueue_t g_wqueue = {
     .cond = PTHREAD_COND_INITIALIZER
 };
 
+work_t * create_work()
+{
+    work_t *w = malloc(sizeof(work_t));
+}
+
 void push_work(work_t *w) {
     pthread_mutex_lock(&g_wqueue.mutex);
 

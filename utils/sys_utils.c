@@ -6,21 +6,21 @@
 #include <log.h>
 #include <dbus_comm.h>
 
-// Encode data_frame_t into an existing DBusMessage
-bool encode_data_frame(DBusMessage *msg, const data_frame_t *frame)
+// Encode cmd_data_t into an existing DBusMessage
+bool encode_data_frame(DBusMessage *msg, const cmd_data_t *cmd)
 {
     DBusMessageIter iter, array_iter, struct_iter, variant_iter;
 
     dbus_message_iter_init_append(msg, &iter);
 
-    dbus_message_iter_append_basic(&iter, DBUS_TYPE_STRING, &frame->component_id);
-    dbus_message_iter_append_basic(&iter, DBUS_TYPE_INT32, &frame->topic_id);
-    dbus_message_iter_append_basic(&iter, DBUS_TYPE_INT32, &frame->opcode);
+    dbus_message_iter_append_basic(&iter, DBUS_TYPE_STRING, &cmd->component_id);
+    dbus_message_iter_append_basic(&iter, DBUS_TYPE_INT32, &cmd->topic_id);
+    dbus_message_iter_append_basic(&iter, DBUS_TYPE_INT32, &cmd->opcode);
 
     dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "(siiv)", &array_iter);
 
-    for (int i = 0; i < frame->entry_count; ++i) {
-        payload_t *entry = &frame->entries[i];
+    for (int i = 0; i < cmd->entry_count; ++i) {
+        payload_t *entry = &cmd->entries[i];
 
         dbus_message_iter_open_container(&array_iter, DBUS_TYPE_STRUCT, NULL, &struct_iter);
 
@@ -64,8 +64,8 @@ bool encode_data_frame(DBusMessage *msg, const data_frame_t *frame)
     return true;
 }
 
-// Decode DBusMessage into data_frame_t
-bool decode_data_frame(DBusMessage *msg, data_frame_t *out)
+// Decode DBusMessage into cmd_data_t
+bool decode_data_frame(DBusMessage *msg, cmd_data_t *out)
 {
     DBusMessageIter iter, array_iter, struct_iter, variant_iter;
 
@@ -127,52 +127,52 @@ bool decode_data_frame(DBusMessage *msg, data_frame_t *out)
     return true;
 }
 
-// Create a method frame to send via method call
-void create_method_frame(data_frame_t *frame)
+// Create a method cmd to send via method call
+void create_method_frame(cmd_data_t *cmd)
 {
-    frame->component_id = "terminal-ui";
-    frame->topic_id = 1001;
-    frame->opcode = 42;
-    frame->entry_count = 2;
+    cmd->component_id = "terminal-ui";
+    cmd->topic_id = 1001;
+    cmd->opcode = 42;
+    cmd->entry_count = 2;
 
-    frame->entries[0].key = "username";
-    frame->entries[0].data_type = DBUS_TYPE_STRING;
-    frame->entries[0].data_length = 0;
-    frame->entries[0].value.str = "alice";
+    cmd->entries[0].key = "username";
+    cmd->entries[0].data_type = DBUS_TYPE_STRING;
+    cmd->entries[0].data_length = 0;
+    cmd->entries[0].value.str = "alice";
 
-    frame->entries[1].key = "age";
-    frame->entries[1].data_type = DBUS_TYPE_INT32;
-    frame->entries[1].data_length = 0;
-    frame->entries[1].value.i32 = 30;
+    cmd->entries[1].key = "age";
+    cmd->entries[1].data_type = DBUS_TYPE_INT32;
+    cmd->entries[1].data_length = 0;
+    cmd->entries[1].value.i32 = 30;
 }
 
-// Create a sample frame to send as a signal
-void create_signal_frame(data_frame_t *frame)
+// Create a sample cmd to send as a signal
+void create_signal_frame(cmd_data_t *cmd)
 {
-    frame->component_id = "terminal-ui";
-    frame->topic_id = 1001;
-    frame->opcode = 42;
-    frame->entry_count = 2;
+    cmd->component_id = "terminal-ui";
+    cmd->topic_id = 1001;
+    cmd->opcode = 42;
+    cmd->entry_count = 2;
 
-    frame->entries[0].key = "username";
-    frame->entries[0].data_type = DBUS_TYPE_STRING;
-    frame->entries[0].data_length = 0;
-    frame->entries[0].value.str = "haha";
+    cmd->entries[0].key = "username";
+    cmd->entries[0].data_type = DBUS_TYPE_STRING;
+    cmd->entries[0].data_length = 0;
+    cmd->entries[0].value.str = "haha";
 
-    frame->entries[1].key = "age";
-    frame->entries[1].data_type = DBUS_TYPE_INT32;
-    frame->entries[1].data_length = 0;
-    frame->entries[1].value.i32 = 31;
+    cmd->entries[1].key = "age";
+    cmd->entries[1].data_type = DBUS_TYPE_INT32;
+    cmd->entries[1].data_length = 0;
+    cmd->entries[1].value.i32 = 31;
 }
 
-// Send a DBus method call with encoded data_frame_t
+// Send a DBus method call with encoded cmd_data_t
 int send_method_call(DBusConnection *conn)
 {
     DBusMessage *msg;
     DBusPendingCall *pending;
     DBusMessage *reply;
     DBusMessageIter reply_args;
-    data_frame_t frame;
+    cmd_data_t cmd;
     int ret = EXIT_SUCCESS;
 
     msg = dbus_message_new_method_call(SYS_MGR_DBUS_SER,
@@ -184,9 +184,9 @@ int send_method_call(DBusConnection *conn)
         return EXIT_FAILURE;
     }
 
-    create_method_frame(&frame);
+    create_method_frame(&cmd);
 
-    if (!encode_data_frame(msg, &frame)) {
+    if (!encode_data_frame(msg, &cmd)) {
         LOG_ERROR("Failed to encode data frame");
         dbus_message_unref(msg);
         return EXIT_FAILURE;
@@ -226,11 +226,11 @@ int send_method_call(DBusConnection *conn)
     return ret;
 }
 
-// Send a DBus signal with encoded data_frame_t
+// Send a DBus signal with encoded cmd_data_t
 int send_signal(DBusConnection *conn)
 {
     DBusMessage *msg;
-    data_frame_t frame;
+    cmd_data_t cmd;
 
     msg = dbus_message_new_signal(UI_DBUS_OBJ_PATH,
                                   UI_DBUS_IFACE,
@@ -240,9 +240,9 @@ int send_signal(DBusConnection *conn)
         return EXIT_FAILURE;
     }
 
-    create_signal_frame(&frame);
+    create_signal_frame(&cmd);
 
-    if (!encode_data_frame(msg, &frame)) {
+    if (!encode_data_frame(msg, &cmd)) {
         LOG_ERROR("Failed to encode data frame");
         dbus_message_unref(msg);
         return EXIT_FAILURE;

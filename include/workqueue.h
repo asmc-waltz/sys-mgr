@@ -6,6 +6,8 @@
 #ifndef G_WORKQUEUE_H
 #define G_WORKQUEUE_H
 
+#include <dbus_comm.h>
+
 typedef struct work {
     int opcode;
     char data[256];
