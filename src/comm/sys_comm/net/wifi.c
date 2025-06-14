@@ -284,15 +284,15 @@ static void on_device_active_connection_changed(GObject *object, \
     WifiConnectContext *ctx;
     NMDevice *device;
     NMActiveConnection *ac;
+    NMRemoteConnection *remote;
     const char *id;
 
     ctx = (WifiConnectContext *)user_data;
     device = NM_DEVICE(object);
     ac = nm_device_get_active_connection(device);
-
     if (ac) {
-        id = nm_connection_get_id( \
-            nm_active_connection_get_connection(ac));
+        remote = nm_active_connection_get_connection(ac);
+        id = remote ? nm_connection_get_id(NM_CONNECTION(remote)) : NULL;
 
         LOG_TRACE("[DEVICE] Active connection changed → %s", \
                   id ? id : "(null)");

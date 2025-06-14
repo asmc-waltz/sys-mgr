@@ -56,7 +56,7 @@ bool encode_data_frame(DBusMessage *msg, const cmd_data_t *cmd)
     dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "(siiv)", &array_iter);
 
     for (int i = 0; i < cmd->entry_count; ++i) {
-        payload_t *entry = &cmd->entries[i];
+        const payload_t *entry = &cmd->entries[i];
 
         dbus_message_iter_open_container(&array_iter, DBUS_TYPE_STRUCT, NULL, &struct_iter);
 
@@ -335,9 +335,8 @@ DBusConnection * setup_dbus()
         LOG_ERROR("Failed to allocate memory");
         return NULL;
     }
-    sprintf(match_rule,
-        "type='signal',interface='%s',member='%s',path='%s'",
-        UI_DBUS_IFACE, UI_DBUS_SIG, UI_DBUS_OBJ_PATH);
+    sprintf(match_rule, "type='signal',interface='%s',member='%s',path='%s'",
+            UI_DBUS_IFACE, UI_DBUS_SIG, UI_DBUS_OBJ_PATH);
 
     ret = add_dbus_match_rule(conn, match_rule);
     if (ret) {

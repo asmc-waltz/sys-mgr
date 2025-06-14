@@ -20,7 +20,7 @@ bool encode_data_frame(DBusMessage *msg, const cmd_data_t *cmd)
     dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "(siiv)", &array_iter);
 
     for (int i = 0; i < cmd->entry_count; ++i) {
-        payload_t *entry = &cmd->entries[i];
+        const payload_t *entry = &cmd->entries[i];
 
         dbus_message_iter_open_container(&array_iter, DBUS_TYPE_STRUCT, NULL, &struct_iter);
 

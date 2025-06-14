@@ -5,6 +5,7 @@
 
 #include <log.h>
 #include <sys_mgr.h>
+#include <sys_comm.h>
 #include <workqueue.h>
 
 extern volatile sig_atomic_t g_run;

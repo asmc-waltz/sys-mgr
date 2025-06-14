@@ -8,6 +8,7 @@
 
 #include <NetworkManager.h>
 
+NMClient * get_nm_client();
 int network_manager_comm_init();
 void network_manager_comm_deinit();
 

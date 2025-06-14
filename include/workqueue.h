@@ -21,6 +21,7 @@ typedef struct workqueue {
 } workqueue_t;
 
 work_t * create_work(cmd_data_t *cmd);
+void delete_work(work_t *work);
 void push_work(work_t *work);
 work_t* pop_work_wait();
 void workqueue_stop();
