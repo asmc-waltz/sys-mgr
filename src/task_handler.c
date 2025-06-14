@@ -22,7 +22,7 @@ void * main_task_handler(void* arg)
             LOG_INFO("Task handler is exiting...");
             break;
         }
-        LOG_TRACE("Task: received opcode=%d, data=%s", w->opcode, w->data);
+        LOG_TRACE("Task: received opcode=%d", w->cmd->opcode);
 
 /******************************************************************************/
         LOG_INFO("#############################################");
@@ -36,7 +36,8 @@ void * main_task_handler(void* arg)
         LOG_INFO("#############################################");
 /******************************************************************************/
 
-        LOG_TRACE("Task done: %s", w->data);
+        LOG_TRACE("Task done: %d", w->cmd->opcode);
+        free(w->cmd);
         free(w);
     };
 

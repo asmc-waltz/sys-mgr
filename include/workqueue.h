@@ -9,8 +9,7 @@
 #include <dbus_comm.h>
 
 typedef struct work {
-    int opcode;
-    char data[256];
+    cmd_data_t *cmd;
     struct work *next;
 } work_t;
 
@@ -21,6 +20,7 @@ typedef struct workqueue {
     pthread_cond_t cond;
 } workqueue_t;
 
+work_t * create_work(cmd_data_t *cmd);
 void push_work(work_t *work);
 work_t* pop_work_wait();
 void workqueue_stop();

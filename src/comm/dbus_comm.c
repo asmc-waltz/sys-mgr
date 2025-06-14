@@ -141,10 +141,19 @@ bool decode_data_frame(DBusMessage *msg, cmd_data_t *out)
     return true;
 }
 
-void handle_received_message(DBusMessage *msg, cmd_data_t *cmd) {
+cmd_data_t * handle_received_message(DBusMessage *msg) {
+    cmd_data_t *cmd = NULL;
+
+    cmd = (cmd_data_t *)calloc(1, sizeof(cmd_data_t));
+    if (!cmd) {
+        LOG_ERROR("Failed to allocate memory for command data");
+        return NULL;
+    }
+
     if (!decode_data_frame(msg, cmd)) {
+        free(cmd);
         LOG_ERROR("Failed to decode received cmd_data_t");
-        return;
+        return NULL;
     }
 
     LOG_INFO("Received frame from component: %s", cmd->component_id);
@@ -164,12 +173,15 @@ void handle_received_message(DBusMessage *msg, cmd_data_t *cmd) {
                 LOG_WARN("Unsupported type: %c", entry->data_type);
         }
     }
+
+    return cmd;
 }
 
 int dbus_event_handler(DBusConnection *conn)
 {
-    DBusMessage *msg;
-    cmd_data_t cmd;
+    DBusMessage *msg = NULL;
+    cmd_data_t *cmd;
+    work_t *w = NULL;
 
     while (dbus_connection_read_write_dispatch(conn, 0)) {
         msg = dbus_connection_pop_message(conn);
@@ -181,7 +193,7 @@ int dbus_event_handler(DBusConnection *conn)
         if (dbus_message_is_method_call(msg, \
                                         SYS_MGR_DBUS_IFACE, \
                                         SYS_MGR_DBUS_METH)) {
-            handle_received_message(msg, &cmd);
+            cmd = handle_received_message(msg);
             // TODO: Handle cmd from message
 
             DBusMessage *reply;
@@ -195,15 +207,21 @@ int dbus_event_handler(DBusConnection *conn)
         } else if (dbus_message_is_signal(msg, \
                                           UI_DBUS_IFACE, \
                                           UI_DBUS_SIG)) {
-            handle_received_message(msg, &cmd);
+            cmd = handle_received_message(msg);
+            if (!cmd) {
+                LOG_ERROR("Unable to handle message");
+            }
+
+            w = create_work(cmd);
+
             // TODO: Handle cmd from message
 
-            work_t *w = malloc(sizeof(work_t));
-            w->opcode = 10;
-            snprintf(w->data, sizeof(w->data), "Message #%d", w->opcode);
+            // work_t *w = malloc(sizeof(work_t));
+            // w->opcode = 10;
+            // snprintf(w->data, sizeof(w->data), "Message #%d", w->opcode);
 
             push_work(w);
-            LOG_DEBUG("[DBus Thread] Pushed job %d", w->opcode);
+            LOG_DEBUG("[DBus Thread] Pushed job %d", w->cmd->opcode);
         }
 
         dbus_message_unref(msg);

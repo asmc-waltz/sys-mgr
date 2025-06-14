@@ -1,7 +1,9 @@
+#include <stdlib.h>
 #include <pthread.h>
 #include <signal.h>
 
 #include <workqueue.h>
+#include <dbus_comm.h>
 
 extern volatile sig_atomic_t g_run;
 
@@ -12,9 +14,19 @@ static workqueue_t g_wqueue = {
     .cond = PTHREAD_COND_INITIALIZER
 };
 
-work_t * create_work()
+work_t * create_work(cmd_data_t *cmd)
 {
-    work_t *w = malloc(sizeof(work_t));
+    work_t *w = NULL;
+
+    w = malloc(sizeof(work_t));
+    if (w == NULL || cmd == NULL) {
+        return NULL;
+    }
+
+    w->cmd = cmd;
+    LOG_TRACE("work is created for cmd opcode: %d", w->cmd->opcode);
+
+    return w;
 }
 
 void push_work(work_t *w) {
