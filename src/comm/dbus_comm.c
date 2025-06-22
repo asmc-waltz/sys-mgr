@@ -306,7 +306,7 @@ DBusConnection * setup_dbus()
     int ret = 0;
 
     dbus_error_init(&err);
-    conn = dbus_bus_get(DBUS_BUS_SESSION, &err);
+    conn = dbus_bus_get(DBUS_BUS_SYSTEM, &err);
     if (dbus_error_is_set(&err)) {
         LOG_ERROR("DBus connection Error: %s", err.message);
         dbus_error_free(&err);
