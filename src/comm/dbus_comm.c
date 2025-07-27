@@ -200,7 +200,7 @@ int dispatch_cmd_from_message(DBusMessage *msg)
 		}
 	}
 
-	work = create_work(cmd);
+	work = create_work(REMOTE_WORK, (void *)cmd);
 	if (!work) {
 		LOG_ERROR("Failed to create work from cmd");
 		delete_cmd(cmd);
