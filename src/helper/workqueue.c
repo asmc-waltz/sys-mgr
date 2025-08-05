@@ -1,7 +1,10 @@
+#include <stdlib.h>
 #include <pthread.h>
 #include <signal.h>
+#include <stdint.h>
 
 #include <workqueue.h>
+#include <dbus_comm.h>
 
 extern volatile sig_atomic_t g_run;
 
@@ -11,6 +14,52 @@ static workqueue_t g_wqueue = {
     .mutex = PTHREAD_MUTEX_INITIALIZER,
     .cond = PTHREAD_COND_INITIALIZER
 };
+
+work_t *create_work(uint32_t type, void *data)
+{
+	work_t *work;
+
+	if (!data) {
+		LOG_WARN("Unable to create work: invalid data pointer");
+		return NULL;
+    }
+
+	work = calloc(1, sizeof(*work));
+	if (!work)
+		return NULL;
+
+    work->type = type;
+	work->data = data;
+    if (work->type == REMOTE_WORK) {
+	    LOG_TRACE("Created work for opcode: %d", ((cmd_data_t *)data)->opcode);
+    }
+
+	return work;
+}
+
+void delete_work(work_t *work)
+{
+	void *data;
+
+	if (!work) {
+		LOG_WARN("Unable to delete work: null work pointer");
+		return;
+	}
+
+	data = work->data;
+	if (!data) {
+		LOG_WARN("Unable to delete work: null data pointer");
+		free(work);
+		return;
+	}
+
+    if (work->type == REMOTE_WORK) {
+	    LOG_TRACE("Deleting work for opcode: %d", ((cmd_data_t *)data)->opcode);
+    }
+
+	free(data);
+	free(work);
+}
 
 void push_work(work_t *w) {
     pthread_mutex_lock(&g_wqueue.mutex);
@@ -55,3 +104,4 @@ void workqueue_stop() {
     pthread_cond_broadcast(&g_wqueue.cond);
     pthread_mutex_unlock(&g_wqueue.mutex);
 }
+
