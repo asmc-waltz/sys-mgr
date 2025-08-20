@@ -1,3 +1,11 @@
+/**
+ * @file dbus_comm.c
+ *
+ */
+
+/*********************
+ *      INCLUDES
+ *********************/
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -7,43 +15,47 @@
 #include <sys/eventfd.h>
 #include <inttypes.h>
 #include <stdbool.h>
-
 #include <dbus/dbus.h>
 
-#include <log.h>
-#include <sys_mgr.h>
 #include <dbus_comm.h>
-#include <sys_comm.h>
-#include <workqueue.h>
 
+#include <workqueue.h>
+#include <task.h>
+#include <log.h>
+
+/*********************
+ *      DEFINES
+ *********************/
 #define MAX_EVENTS 2
+
+/**********************
+ *      TYPEDEFS
+ **********************/
+
+/**********************
+ *  GLOBAL VARIABLES
+ **********************/
 extern volatile sig_atomic_t g_run;
 extern int event_fd;
 
-cmd_data_t *create_cmd(void)
-{
-	cmd_data_t *cmd;
+/**********************
+ *  STATIC PROTOTYPES
+ **********************/
+static void parse_dbus_iter(DBusMessageIter* iter, int indent);
 
-	cmd = calloc(1, sizeof(*cmd));
-	if (!cmd) {
-		return NULL;
-	}
+/**********************
+ *  STATIC VARIABLES
+ **********************/
 
-	return cmd;
-}
+/**********************
+ *      MACROS
+ **********************/
 
-void delete_cmd(cmd_data_t *cmd)
-{
-	if (!cmd) {
-		LOG_WARN("Unable to delete cmd: null pointer");
-		return;
-	}
-
-	free(cmd);
-}
-
-// Encode cmd_data_t into an existing DBusMessage
-bool encode_data_frame(DBusMessage *msg, const cmd_data_t *cmd)
+/**********************
+ *   STATIC FUNCTIONS
+ **********************/
+// Encode remote_cmd_t into an existing DBusMessage
+bool encode_data_frame(DBusMessage *msg, const remote_cmd_t *cmd)
 {
     DBusMessageIter iter, array_iter, struct_iter, variant_iter;
 
@@ -100,8 +112,8 @@ bool encode_data_frame(DBusMessage *msg, const cmd_data_t *cmd)
     return true;
 }
 
-// Decode DBusMessage into cmd_data_t
-bool decode_data_frame(DBusMessage *msg, cmd_data_t *out)
+// Decode DBusMessage into remote_cmd_t
+bool decode_data_frame(DBusMessage *msg, remote_cmd_t *out)
 {
     DBusMessageIter iter, array_iter, struct_iter, variant_iter;
 
@@ -165,11 +177,11 @@ bool decode_data_frame(DBusMessage *msg, cmd_data_t *out)
 
 int dispatch_cmd_from_message(DBusMessage *msg)
 {
-	cmd_data_t *cmd;
+	remote_cmd_t *cmd;
 	work_t *work;
 	int i;
 
-	cmd = create_cmd();
+	cmd = create_remote_cmd();
 	if (!cmd) {
 		LOG_ERROR("Failed to allocate memory for cmd_data");
 		return -ENOMEM;
@@ -177,7 +189,7 @@ int dispatch_cmd_from_message(DBusMessage *msg)
 
 	if (!decode_data_frame(msg, cmd)) {
 		LOG_ERROR("Failed to decode DBus message");
-		delete_cmd(cmd);
+		delete_remote_cmd(cmd);
 		return -EINVAL;
 	}
 
@@ -200,10 +212,10 @@ int dispatch_cmd_from_message(DBusMessage *msg)
 		}
 	}
 
-	work = create_work(REMOTE_WORK, (void *)cmd);
+	work = create_work(REMOTE, BLOCK, SHORT, cmd->opcode, (void *)cmd);
 	if (!work) {
 		LOG_ERROR("Failed to create work from cmd");
-		delete_cmd(cmd);
+		delete_remote_cmd(cmd);
 		return -ENOMEM;
 	}
 
@@ -348,27 +360,27 @@ DBusConnection * setup_dbus()
     return conn;
 }
 
-void* dbus_listen_thread(void* arg) {
-    DBusConnection *conn = (DBusConnection*)arg;
-    int dbus_fd;
-    int epoll_fd;
+int32_t dbus_listener(DBusConnection *conn)
+{
+    int32_t dbus_fd;
+    int32_t epoll_fd;
     struct epoll_event ev;
     struct epoll_event events_detected[MAX_EVENTS];
-    int n_ready;
-    int ready_fd;
+    int32_t n_ready;
+    int32_t ready_fd;
 
     // Get DBus file desc
     dbus_connection_get_unix_fd(conn, &dbus_fd);
     if (dbus_fd < 0) {
         LOG_ERROR("Failed to get dbus fd");
-        return NULL;
+        return EXIT_FAILURE;
     }
- 
+
     // Create epoll file desc
     epoll_fd = epoll_create1(0);
     if (epoll_fd == -1) {
         LOG_ERROR("Failed to create epoll fd");
-        return NULL;
+        return EXIT_FAILURE;
     }
 
     ev.events = EPOLLIN;
@@ -378,7 +390,7 @@ void* dbus_listen_thread(void* arg) {
     if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, dbus_fd, &ev) == -1) {
         LOG_ERROR("Failed to add fd to epoll_ctl");
         close(epoll_fd);
-        return NULL;
+        return EXIT_FAILURE;
     }
 
     // Add Event file desc
@@ -386,7 +398,7 @@ void* dbus_listen_thread(void* arg) {
     if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, event_fd, &ev) == -1) {
         LOG_ERROR("Failed to add fd to epoll_ctl");
         close(epoll_fd);
-        return NULL;
+        return EXIT_FAILURE;
     }
 
     LOG_INFO("System manager DBus communication is running...");
@@ -406,7 +418,29 @@ void* dbus_listen_thread(void* arg) {
     }
 
     close(epoll_fd);
-    LOG_INFO("The DBus handler thread in System Manager exited successfully");
+    LOG_INFO("The DBus handler thread exited successfully");
 
-    return NULL;
+    return EXIT_SUCCESS;
 }
+
+int32_t dbus_fn_thread_handler()
+{
+    DBusConnection *conn;
+    int32_t rc;
+
+    conn = setup_dbus();
+    if (!conn) {
+        LOG_FATAL("Unable to establish connection with DBus");
+        return EXIT_FAILURE;
+    }
+
+    // This thread processes DBus messages
+    rc = dbus_listener(conn);
+    if (rc) {
+        LOG_FATAL("Failed to create DBus listener");
+    }
+
+    dbus_connection_unref(conn);
+    return rc;
+}
+
