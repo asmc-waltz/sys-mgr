@@ -6,8 +6,8 @@
 #include <log.h>
 #include <dbus_comm.h>
 
-// Encode cmd_data_t into an existing DBusMessage
-bool encode_data_frame(DBusMessage *msg, const cmd_data_t *cmd)
+// Encode remote_cmd_t into an existing DBusMessage
+bool encode_data_frame(DBusMessage *msg, const remote_cmd_t *cmd)
 {
     DBusMessageIter iter, array_iter, struct_iter, variant_iter;
 
@@ -64,8 +64,8 @@ bool encode_data_frame(DBusMessage *msg, const cmd_data_t *cmd)
     return true;
 }
 
-// Decode DBusMessage into cmd_data_t
-bool decode_data_frame(DBusMessage *msg, cmd_data_t *out)
+// Decode DBusMessage into remote_cmd_t
+bool decode_data_frame(DBusMessage *msg, remote_cmd_t *out)
 {
     DBusMessageIter iter, array_iter, struct_iter, variant_iter;
 
@@ -128,7 +128,7 @@ bool decode_data_frame(DBusMessage *msg, cmd_data_t *out)
 }
 
 // Create a method cmd to send via method call
-void create_method_frame(cmd_data_t *cmd)
+void create_method_frame(remote_cmd_t *cmd)
 {
     cmd->component_id = "terminal-ui";
     cmd->topic_id = 1001;
@@ -147,7 +147,7 @@ void create_method_frame(cmd_data_t *cmd)
 }
 
 // Create a sample cmd to send as a signal
-void create_signal_frame(cmd_data_t *cmd)
+void create_signal_frame(remote_cmd_t *cmd)
 {
     cmd->component_id = "terminal-ui";
     cmd->topic_id = 1001;
@@ -165,14 +165,14 @@ void create_signal_frame(cmd_data_t *cmd)
     cmd->entries[1].value.i32 = 31;
 }
 
-// Send a DBus method call with encoded cmd_data_t
+// Send a DBus method call with encoded remote_cmd_t
 int send_method_call(DBusConnection *conn)
 {
     DBusMessage *msg;
     DBusPendingCall *pending;
     DBusMessage *reply;
     DBusMessageIter reply_args;
-    cmd_data_t cmd;
+    remote_cmd_t cmd;
     int ret = EXIT_SUCCESS;
 
     msg = dbus_message_new_method_call(SYS_MGR_DBUS_SER,
@@ -226,11 +226,11 @@ int send_method_call(DBusConnection *conn)
     return ret;
 }
 
-// Send a DBus signal with encoded cmd_data_t
+// Send a DBus signal with encoded remote_cmd_t
 int send_signal(DBusConnection *conn)
 {
     DBusMessage *msg;
-    cmd_data_t cmd;
+    remote_cmd_t cmd;
 
     msg = dbus_message_new_signal(UI_DBUS_OBJ_PATH,
                                   UI_DBUS_IFACE,
