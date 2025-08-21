@@ -93,9 +93,9 @@ int process_opcode(uint32_t opcode, void *data)
     //     struct imu_angles a = imu_get_angles();
     //     LOG_DEBUG("roll=%.2f pitch=%.2f yaw=%.2f\n", a.roll, a.pitch, a.yaw);
     //     break;
-    // case OP_ID_AUDIO_INIT:
-    //     snd_sys_init();
-    //     break;
+    case OP_ID_AUDIO_INIT:
+        snd_sys_init();
+        break;
     // case OP_ID_AUDIO_RELEASE:
     //     snd_sys_release();
     //     break;
