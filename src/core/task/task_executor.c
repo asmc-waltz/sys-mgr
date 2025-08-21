@@ -82,11 +82,11 @@ int process_opcode(uint32_t opcode, void *data)
 
     switch (opcode) {
     case OP_ID_LEFT_VIBRATOR:
-    //     rc = rumble_trigger(2, 80, 150);
-    //     break;
-    // case OP_ID_RIGHT_VIBRATOR:
-    //     rc = rumble_trigger(3, 80, 150);
-    //     break;
+        rc = rumble_trigger(2, 80, 150);
+        break;
+    case OP_ID_RIGHT_VIBRATOR:
+        rc = rumble_trigger(3, 80, 150);
+        break;
     case OP_ID_STOP_IMU:
         imu_fn_thread_stop();
         break;
