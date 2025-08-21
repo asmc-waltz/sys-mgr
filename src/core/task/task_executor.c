@@ -81,6 +81,16 @@ int process_opcode(uint32_t opcode, void *data)
     int rc = 0;
 
     switch (opcode) {
+    case OP_ID_BACKLIGHT_INIT:
+        backlight_setup();
+        break;
+    case OP_ID_BACKLIGHT_DEINIT:
+        break;
+    case OP_ID_SET_BRIGHTNESS:
+        set_brightness( (*((remote_cmd_t *)data)).entries[1].value.i32);
+        break;
+    case OP_ID_GET_BRIGHTNESS:
+        break;
     case OP_ID_LEFT_VIBRATOR:
         rc = rumble_trigger(2, 80, 150);
         break;
