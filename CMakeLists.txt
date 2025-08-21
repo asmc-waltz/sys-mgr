@@ -29,7 +29,9 @@ include_directories(include)
 
 file(GLOB_RECURSE SRC_FILES "src/*.c")
 add_executable(sys-mgr ${SRC_FILES})
+target_include_directories(sys-mgr PRIVATE ${ALSA_INCLUDE_DIRS})
 target_link_libraries(sys-mgr
+    m
     ${DBUS_LIBRARIES}
     ${LIBNM_LIBRARIES}
     ${GLIB_LIBRARIES}
