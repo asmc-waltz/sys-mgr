@@ -109,6 +109,8 @@ int main() {
     }
 
     pthread_join(task_handler, NULL);
+    // TODO: release audio HW
+    snd_sys_release();
     close(event_fd);
     LOG_DEBUG("All services stopped. Safe exit.\n");
     return EXIT_SUCCESS;
