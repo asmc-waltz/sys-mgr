@@ -3,8 +3,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <log.h>
 #include <dbus_comm.h>
+#include <task.h>
+
+#include <log.h>
 
 // Encode remote_cmd_t into an existing DBusMessage
 bool encode_data_frame(DBusMessage *msg, const remote_cmd_t *cmd)
@@ -132,18 +134,18 @@ void create_method_frame(remote_cmd_t *cmd)
 {
     cmd->component_id = "terminal-ui";
     cmd->topic_id = 1001;
-    cmd->opcode = 42;
+    cmd->opcode = OP_ID_SET_BRIGHTNESS;
     cmd->entry_count = 2;
 
-    cmd->entries[0].key = "username";
+    cmd->entries[0].key = "backlight";
     cmd->entries[0].data_type = DBUS_TYPE_STRING;
     cmd->entries[0].data_length = 0;
-    cmd->entries[0].value.str = "alice";
+    cmd->entries[0].value.str = "max";
 
-    cmd->entries[1].key = "age";
+    cmd->entries[1].key = "brightness";
     cmd->entries[1].data_type = DBUS_TYPE_INT32;
-    cmd->entries[1].data_length = 0;
-    cmd->entries[1].value.i32 = 30;
+    cmd->entries[1].data_length = 1;
+    cmd->entries[1].value.i32 = 100;
 }
 
 // Create a sample cmd to send as a signal
@@ -151,18 +153,18 @@ void create_signal_frame(remote_cmd_t *cmd)
 {
     cmd->component_id = "terminal-ui";
     cmd->topic_id = 1001;
-    cmd->opcode = 42;
+    cmd->opcode = OP_ID_SET_BRIGHTNESS;
     cmd->entry_count = 2;
 
-    cmd->entries[0].key = "username";
+    cmd->entries[0].key = "backlight";
     cmd->entries[0].data_type = DBUS_TYPE_STRING;
     cmd->entries[0].data_length = 0;
-    cmd->entries[0].value.str = "haha";
+    cmd->entries[0].value.str = "min";
 
-    cmd->entries[1].key = "age";
+    cmd->entries[1].key = "brightness";
     cmd->entries[1].data_type = DBUS_TYPE_INT32;
-    cmd->entries[1].data_length = 0;
-    cmd->entries[1].value.i32 = 31;
+    cmd->entries[1].data_length = 1;
+    cmd->entries[1].value.i32 = 1;
 }
 
 // Send a DBus method call with encoded remote_cmd_t
