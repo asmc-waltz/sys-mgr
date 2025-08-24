@@ -93,8 +93,8 @@ int main() {
         goto exit_workqueue;
     }
 
-    create_local_simple_task(NON_BLOCK, ENDLESS, OP_ID_START_DBUS);
-    create_local_simple_task(NON_BLOCK, SHORT, OP_ID_AUDIO_INIT);
+    create_local_simple_task(NON_BLOCK, ENDLESS, OP_START_DBUS);
+    create_local_simple_task(NON_BLOCK, SHORT, OP_AUDIO_INIT);
 
     ret = network_manager_comm_init();
     if (ret) {

@@ -36,42 +36,46 @@
  */
 
 typedef enum {
-    COMP_ID_NONE = 0,
-    COMP_ID_SYS_MGR,
-    COMP_ID_TERM_UI,
+    COMP_NONE = 0,
+    COMP_SYS_MGR,
+    COMP_TERM_UI,
 } component_id_t;
 
 typedef enum {
-    TPC_ID_NONE = 0,
-    OP_ID_NET,
+    TPC_NONE = 0,
+    TPC_HW,
+    TPC_NET,
 } topic_id_t;
 
 typedef enum {
-    OP_ID_NONE = 0,
+    OP_NONE = 0,
     /* Common API */
-    OP_ID_START_DBUS,
-    OP_ID_PING,
+    OP_PING,
+    /* DBUS API*/
+    OP_START_DBUS,
+    OP_DBUS_SENT_CMD,
+    OP_DBUS_SENT_CMD_DATA,
     /* Brightness API */
-    OP_ID_BACKLIGHT_INIT,
-    OP_ID_BACKLIGHT_DEINIT,
-    OP_ID_GET_BRIGHTNESS,
-    OP_ID_SET_BRIGHTNESS,
+    OP_BACKLIGHT_INIT,
+    OP_BACKLIGHT_DEINIT,
+    OP_GET_BRIGHTNESS,
+    OP_SET_BRIGHTNESS,
     /* Network API */
-    OP_ID_WIFI_RESCAN,
-    OP_ID_WIFI_GET_AP_LIST,
-    OP_ID_WIFI_GET_AP_INFO,
-    OP_ID_WIFI_CONN_AP,
+    OP_WIFI_RESCAN,
+    OP_WIFI_GET_AP_LIST,
+    OP_WIFI_GET_AP_INFO,
+    OP_WIFI_CONN_AP,
     /* Vibrator API */
-    OP_ID_LEFT_VIBRATOR,
-    OP_ID_RIGHT_VIBRATOR,
+    OP_LEFT_VIBRATOR,
+    OP_RIGHT_VIBRATOR,
     /* IMU API */
-    OP_ID_START_IMU,
-    OP_ID_STOP_IMU,
-    OP_ID_READ_IMU,
+    OP_START_IMU,
+    OP_STOP_IMU,
+    OP_READ_IMU,
     /* AUDIO API */
-    OP_ID_AUDIO_INIT,
-    OP_ID_AUDIO_RELEASE,
-    OP_ID_SOUND_PLAY,
+    OP_AUDIO_INIT,
+    OP_AUDIO_RELEASE,
+    OP_SOUND_PLAY,
 } opcode_t;
 
 
