@@ -24,6 +24,7 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <errno.h>
+#include <stdbool.h>
 
 #include <audio/audio.h>
 
@@ -228,64 +229,233 @@ void wav_map_close(struct wav_map *wm)
     memset(wm, 0, sizeof(*wm));
 }
 
-/* play from mapping (handles format mismatch options) */
-int32_t audio_play_wav_map(struct audio_mgr *mgr, const struct wav_map *wm)
+/*
+ * Validate the format and reinitialize if needed.
+ * If skip_check is true, the format validation will be skipped.
+ */
+static int32_t validate_and_reinit(struct audio_mgr *mgr,
+                                   const struct wav_map *wm,
+                                   bool skip_check)
 {
-    int32_t ret;
+    int32_t ret = 0;
 
-    if (!mgr || !wm) return AUDIO_E_INVAL;
+    if (!mgr || !wm)
+        return AUDIO_E_INVAL;
 
-    /* if skip_format_check is set, we trust caller and play without matching */
-    if (!mgr->skip_format_check) {
-        /* if formats match, proceed */
-        if (wm->fmt.channels == mgr->fmt.channels &&
-            wm->fmt.sample_rate == mgr->fmt.sample_rate &&
-            wm->fmt.pcm_format == mgr->fmt.pcm_format) {
-            /* formats match */
-        } else {
-            /* mismatch */
-            if (mgr->auto_reinit) {
-                LOG_INFO("format mismatch detected; auto_reinit enabled -> reinit device");
-                ret = audio_mgr_reinit(mgr, wm->fmt.pcm_format, wm->fmt.channels, wm->fmt.sample_rate);
-                if (ret < 0) {
-                    LOG_ERROR("audio_mgr_reinit failed");
-                    return ret;
-                }
-            } else {
-                LOG_ERROR("format mismatch (file vs device) and auto_reinit disabled");
-                return AUDIO_E_INVAL;
-            }
-        }
-    } else {
-        LOG_DEBUG("skip_format_check enabled: playing without checking format");
+    if (skip_check)
+        return AUDIO_OK;
+
+    if (mgr->fmt.channels != wm->fmt.channels ||
+        mgr->fmt.sample_rate != wm->fmt.sample_rate ||
+        mgr->fmt.pcm_format != wm->fmt.pcm_format) {
+        LOG_INFO("Format mismatch, reinitializing audio device...");
+        ret = audio_mgr_reinit(mgr,
+                               wm->fmt.channels,
+                               wm->fmt.sample_rate,
+                               wm->fmt.pcm_format);
     }
 
-    /* compute total frames in the data chunk */
-    size_t frame_size = mgr->frame_size;
-    if (frame_size == 0) return AUDIO_E_INVAL;
-    size_t total_frames = wm->data_size / frame_size;
+    return ret;
+}
 
-    /* stream in reasonable chunks */
+/*
+ * Playback loop: write audio frames into PCM device using mmap.
+ */
+static int32_t playback_loop(struct audio_mgr *mgr, const struct wav_map *wm, \
+                             size_t frame_size, size_t total_frames)
+{
     const size_t chunk_frames = 4096;
     size_t done = 0;
+    int32_t started = 0;
+    int32_t ret = 0;
 
     while (done < total_frames) {
-        size_t to_do = total_frames - done;
-        if (to_do > chunk_frames) to_do = chunk_frames;
+        /* Wait until device can accept more frames (up to 1000 ms) */
+        int32_t w = snd_pcm_wait(mgr->pcm, 1000);
+        if (w < 0) {
+            if (w == -EPIPE || w == -ESTRPIPE) {
+                /* recover xrun/suspend */
+                (void)audio_mgr_prepare(mgr);
+                continue;
+            }
+            LOG_ERROR("snd_pcm_wait: %s", snd_strerror(w));
+            return AUDIO_ERR;
+        }
 
-        LOG_DEBUG("pcm state=%s - loaded %d - total %d", \
-                  snd_pcm_state_name(snd_pcm_state(mgr->pcm)), done, total_frames);
+        snd_pcm_sframes_t avail = snd_pcm_avail_update(mgr->pcm);
+        if (avail < 0) {
+            if (avail == -EPIPE || avail == -ESTRPIPE) {
+                (void)audio_mgr_prepare(mgr);
+                continue;
+            }
+            LOG_ERROR("snd_pcm_avail_update: %s", snd_strerror((int)avail));
+            return AUDIO_ERR;
+        }
+        if (avail == 0)
+            continue; /* nothing right now, loop back */
+
+        size_t to_do = total_frames - done;
+        if ((snd_pcm_sframes_t)to_do > avail) to_do = (size_t)avail;
+        if (to_do > chunk_frames) to_do = chunk_frames;
 
         ret = audio_mgr_write_mmap(mgr, wm->data + done * frame_size, to_do);
         if (ret < 0) {
             LOG_ERROR("audio_mgr_write_mmap failed");
             return ret;
         }
-        // TODO: reverity
-        snd_pcm_start(mgr->pcm);
+
+        if (!started) {
+            /* Kick playback once after priming */
+            int rc = snd_pcm_start(mgr->pcm);
+            if (rc < 0 && rc != -EPIPE && rc != -ESTRPIPE) {
+                LOG_WARN("snd_pcm_start: %s", snd_strerror(rc));
+            }
+            started = 1;
+        }
+
         done += to_do;
     }
 
+    /* Let remaining frames in ring play out */
+    snd_pcm_drain(mgr->pcm);
+
+    return 0;
+}
+
+int32_t audio_mgr_get_hw_params(struct audio_mgr *mgr, \
+                                snd_pcm_uframes_t *buffer_size, \
+                                snd_pcm_uframes_t *period_size)
+{
+    int32_t ret;
+
+    if (!mgr || !mgr->pcm || !buffer_size || !period_size)
+        return -EINVAL;
+
+    ret = snd_pcm_get_params(mgr->pcm, buffer_size, period_size);
+    if (ret < 0) {
+        LOG_ERROR("snd_pcm_get_params failed: %s", snd_strerror(ret));
+        return ret;
+    }
+
+    LOG_DEBUG("buffer_size=%lu period_size=%lu",
+              (unsigned long)*buffer_size,
+              (unsigned long)*period_size);
+
+    return 0;
+}
+
+int32_t audio_mgr_apply_sw_params(struct audio_mgr *mgr, \
+                                  snd_pcm_uframes_t buffer_size, \
+                                  snd_pcm_uframes_t period_size, \
+                                  bool auto_start)
+{
+    snd_pcm_sw_params_t *sw_params;
+    int32_t ret;
+
+    if (!mgr || !mgr->pcm)
+        return -EINVAL;
+
+    snd_pcm_sw_params_alloca(&sw_params);
+
+    ret = snd_pcm_sw_params_current(mgr->pcm, sw_params);
+    if (ret < 0) {
+        LOG_ERROR("snd_pcm_sw_params_current failed: %s",
+                  snd_strerror(ret));
+        return ret;
+    }
+
+    if (auto_start) {
+        ret = snd_pcm_sw_params_set_start_threshold(mgr->pcm,
+                                                    sw_params,
+                                                    buffer_size);
+        if (ret < 0) {
+            LOG_ERROR("set_start_threshold failed: %s",
+                      snd_strerror(ret));
+            return ret;
+        }
+    } else {
+        /* start manually -> threshold = buffer_size + 1 */
+        ret = snd_pcm_sw_params_set_start_threshold(mgr->pcm,
+                                                    sw_params,
+                                                    buffer_size + 1);
+        if (ret < 0) {
+            LOG_ERROR("set_start_threshold failed: %s",
+                      snd_strerror(ret));
+            return ret;
+        }
+    }
+
+    ret = snd_pcm_sw_params_set_avail_min(mgr->pcm,
+                                          sw_params,
+                                          period_size);
+    if (ret < 0) {
+        LOG_ERROR("set_avail_min failed: %s", snd_strerror(ret));
+        return ret;
+    }
+
+    ret = snd_pcm_sw_params(mgr->pcm, sw_params);
+    if (ret < 0) {
+        LOG_ERROR("snd_pcm_sw_params apply failed: %s",
+                  snd_strerror(ret));
+        return ret;
+    }
+
+    LOG_DEBUG("SW params applied: auto_start=%d threshold=%lu avail_min=%lu",
+              auto_start,
+              (unsigned long)(auto_start ? buffer_size : buffer_size + 1),
+              (unsigned long)period_size);
+
+    return 0;
+}
+
+/*
+ * Main API: play a WAV map through the audio manager.
+ * skip_format_check = true will bypass format validation for performance.
+ */
+int32_t audio_play_wav_map(struct audio_mgr *mgr, const struct wav_map *wm, \
+                           bool skip_format_check)
+{
+    int32_t ret = 0;
+    size_t frame_size;
+    size_t total_frames;
+    snd_pcm_uframes_t buffer_size;
+    snd_pcm_uframes_t period_size;
+
+    if (!mgr || !wm)
+        return AUDIO_E_INVAL;
+
+    ret = validate_and_reinit(mgr, wm, false);
+    if (ret < 0)
+        return ret;
+
+    frame_size = mgr->frame_size;
+    if (frame_size == 0)
+        return AUDIO_E_INVAL;
+
+    total_frames = wm->data_size / frame_size;
+
+    ret = audio_mgr_prepare(mgr);
+    if (ret < 0)
+        return ret;
+
+
+    // (void)set_sw_params(mgr);
+    /* Read buffer_size and period_size from PCM driver */
+    ret = snd_pcm_get_params(mgr->pcm, &buffer_size, &period_size);
+    if (ret < 0)
+        return ret;
+
+    /* Apply software params: start_threshold, avail_min */
+    ret = audio_mgr_apply_sw_params(mgr, buffer_size,
+                                    period_size, true);
+    if (ret < 0)
+        return ret;
+
+    ret = playback_loop(mgr, wm, frame_size, total_frames);
+    if (ret < 0)
+        return ret;
+
+    snd_pcm_drain(mgr->pcm);
     return AUDIO_OK;
 }
 
@@ -298,7 +468,7 @@ int32_t audio_play_wav_file(struct audio_mgr *mgr, const char *path)
     ret = wav_map_open(path, &wm);
     if (ret < 0) return ret;
 
-    ret = audio_play_wav_map(mgr, &wm);
+    ret = audio_play_wav_map(mgr, &wm, mgr->skip_format_check);
     wav_map_close(&wm);
     return ret;
 }

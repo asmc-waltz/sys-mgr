@@ -20,7 +20,7 @@
 
 /* Global default log level */
 #ifndef GLOBAL_LOG_LEVEL
-#define GLOBAL_LOG_LEVEL LOG_LEVEL_TRACE
+#define GLOBAL_LOG_LEVEL LOG_LEVEL_INFO
 #endif
 
 /* Per-file log level override: uses global level if not defined by the file */

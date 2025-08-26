@@ -17,6 +17,7 @@
  *********************/
 #include <stddef.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <alsa/asoundlib.h>
 
 /*********************
@@ -153,7 +154,9 @@ void wav_map_close(struct wav_map *wm);
  *  - else if mgr->auto_reinit == 1: call audio_mgr_reinit() to match file format and play
  *  - else: return AUDIO_E_INVAL
  */
-int32_t audio_play_wav_map(struct audio_mgr *mgr, const struct wav_map *wm);
+int32_t audio_play_wav_map(struct audio_mgr *mgr,
+                            const struct wav_map *wm,
+                            bool skip_format_check);
 
 /* Convenience: open->play->close */
 int32_t audio_play_wav_file(struct audio_mgr *mgr, const char *path);

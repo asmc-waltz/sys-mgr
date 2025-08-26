@@ -87,7 +87,7 @@ int32_t snd_sys_init()
     if (mgr.fmt.channels >= 2) audio_mgr_set_channel_gain(&mgr, 1, 1.0f);
 
     /* 5) play first file (we already have it mapped) */
-    ret = audio_play_wav_map(&mgr, &first);
+    ret = audio_play_wav_map(&mgr, &first, false);
     wav_map_close(&first);
     if (ret < 0) {
         fprintf(stderr, "play 1 failed\n");
