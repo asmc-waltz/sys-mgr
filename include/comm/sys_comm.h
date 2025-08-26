@@ -6,9 +6,31 @@
 #ifndef G_SYS_COMM_H
 #define G_SYS_COMM_H
 
+/*********************
+ *      INCLUDES
+ *********************/
 #include <stddef.h>
 #include <stdint.h>
 
+/*********************
+ *      DEFINES
+ *********************/
+
+/**********************
+ *      TYPEDEFS
+ **********************/
+
+/**********************
+ *      MACROS
+ **********************/
+
+/**********************
+ *  GLOBAL VARIABLES
+ **********************/
+
+/**********************
+ *  GLOBAL PROTOTYPES
+ **********************/
 // internal comm
 int32_t event_set(int32_t evfd, uint64_t code);
 int32_t event_get(int32_t evfd, uint64_t *out_val);
