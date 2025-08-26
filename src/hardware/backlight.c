@@ -14,7 +14,7 @@
 
 #include <stdint.h>
 
-#include <comm/sys_comm.h>
+#include <comm/f_comm.h>
 #include <hw/common.h>
 
 /*********************

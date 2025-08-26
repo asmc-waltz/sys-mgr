@@ -16,7 +16,7 @@
 #include <glib.h>
 #include <NetworkManager.h>
 
-#include <comm/sys_comm.h>
+#include <comm/f_comm.h>
 
 /*********************
  *      DEFINES

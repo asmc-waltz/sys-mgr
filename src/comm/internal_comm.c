@@ -20,7 +20,7 @@
 #include <string.h>
 #include <sys/eventfd.h>
 
-#include <comm/sys_comm.h>
+#include <comm/f_comm.h>
 
 /*********************
  *      DEFINES

@@ -21,7 +21,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include <comm/sys_comm.h>
+#include <comm/f_comm.h>
 
 /*********************
  *      DEFINES
