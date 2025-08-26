@@ -28,7 +28,7 @@ bool encode_data_frame(DBusMessage *msg, const remote_cmd_t *cmd)
     dbus_message_iter_init_append(msg, &iter);
 
     dbus_message_iter_append_basic(&iter, DBUS_TYPE_STRING, &cmd->component_id);
-    dbus_message_iter_append_basic(&iter, DBUS_TYPE_INT32, &cmd->topic_id);
+    dbus_message_iter_append_basic(&iter, DBUS_TYPE_INT32, &cmd->umid);
     dbus_message_iter_append_basic(&iter, DBUS_TYPE_INT32, &cmd->opcode);
 
     dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "(siiv)", &array_iter);
@@ -91,7 +91,7 @@ bool decode_data_frame(DBusMessage *msg, remote_cmd_t *out)
     dbus_message_iter_get_basic(&iter, &out->component_id);
     dbus_message_iter_next(&iter);
 
-    dbus_message_iter_get_basic(&iter, &out->topic_id);
+    dbus_message_iter_get_basic(&iter, &out->umid);
     dbus_message_iter_next(&iter);
 
     dbus_message_iter_get_basic(&iter, &out->opcode);
@@ -145,7 +145,7 @@ bool decode_data_frame(DBusMessage *msg, remote_cmd_t *out)
 void create_method_frame(remote_cmd_t *cmd)
 {
     cmd->component_id = "terminal-ui";
-    cmd->topic_id = 1001;
+    cmd->umid = 1001;
     cmd->opcode = OP_SET_BRIGHTNESS;
     cmd->entry_count = 2;
 
@@ -164,7 +164,7 @@ void create_method_frame(remote_cmd_t *cmd)
 void create_signal_frame(remote_cmd_t *cmd)
 {
     cmd->component_id = "terminal-ui";
-    cmd->topic_id = 1001;
+    cmd->umid = 1001;
     cmd->opcode = OP_SET_BRIGHTNESS;
     cmd->entry_count = 2;
 
