@@ -27,6 +27,7 @@
 #include <comm/net/network.h>
 #include <sched/workqueue.h>
 #include <sched/task.h>
+#include <audio/sound.h>
 
 /*********************
  *      DEFINES
