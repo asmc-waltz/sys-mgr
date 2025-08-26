@@ -9,12 +9,11 @@
  *      INCLUDES
  *********************/
 #include <stdint.h>
-#include <stdbool.h>
 #include <dbus/dbus.h>
 
-#include <workqueue.h>
-#include <task.h>
-#include <log.h>
+#include <comm/cmd_payload.h>
+#include <sched/workqueue.h>
+#include <sched/task.h>
 
 /*********************
  *      DEFINES
@@ -31,6 +30,23 @@
 #define UI_DBUS_METH                    "UIMeth"
 #define UI_DBUS_SIG                     "UISig"
 
+
+#define SER_BUS_TYPE                    DBUS_BUS_SYSTEM
+#define SER_NAME                        SYS_MGR_DBUS_SER
+#define SER_IFACE                       SYS_MGR_DBUS_IFACE
+#define SER_METH                        SYS_MGR_DBUS_METH
+#define SER_SIG                         SYS_MGR_DBUS_SIG
+#define SER_OBJ_PATH                    SYS_MGR_DBUS_OBJ_PATH
+
+#define LISTEN_IFACE                    UI_DBUS_IFACE
+#define LISTEN_SIG                      UI_DBUS_SIG
+#define LISTEN_OBJ_PATH                 UI_DBUS_OBJ_PATH
+
+#define REMOTE_SER_NAME                 UI_DBUS_SER
+#define REMOTE_SER_OBJ_PATH             UI_DBUS_OBJ_PATH
+#define REMOTE_SER_IFACE                UI_DBUS_IFACE
+#define REMOTE_SER_METH                 UI_DBUS_METH
+
 /**********************
  *      TYPEDEFS
  **********************/
@@ -46,15 +62,17 @@
 /**********************
  *  GLOBAL PROTOTYPES
  **********************/
-// Encode remote_cmd_t into DBusMessage
-bool encode_data_frame(DBusMessage *msg, const remote_cmd_t *frame);
-
-// Decode DBusMessage into remote_cmd_t
-bool decode_data_frame(DBusMessage *msg, remote_cmd_t *out);
-
-DBusConnection * setup_dbus();
-
+int32_t add_dbus_match_rule(DBusConnection *conn, const char *rule);
 int32_t dbus_fn_thread_handler();
+
+int32_t dbus_method_call(const char *destination, const char *path, \
+                         const char *iface, const char *method, \
+                         remote_cmd_t *cmd);
+int32_t dbus_method_call_with_data(remote_cmd_t *cmd);
+
+int32_t dbus_emit_signal(const char *path, const char *iface, \
+                         const char *sig, remote_cmd_t *cmd);
+int32_t dbus_emit_signal_with_data(remote_cmd_t *cmd);
 /**********************
  *  STATIC VARIABLES
  **********************/

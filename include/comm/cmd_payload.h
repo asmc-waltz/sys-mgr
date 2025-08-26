@@ -1,16 +1,14 @@
 /**
- * @file task.h
+ * @file cmd_payload.h
  *
  */
 
-#ifndef G_TASK_H
-#define G_TASK_H
+#ifndef G_CMD_PAYLOAD_H
+#define G_CMD_PAYLOAD_H
 /*********************
  *      INCLUDES
  *********************/
 #include <stdint.h>
-
-#include <log.h>
 
 /*********************
  *      DEFINES
@@ -123,20 +121,18 @@ typedef struct {
 /**********************
  *  GLOBAL PROTOTYPES
  **********************/
-void normal_task_cnt_reset();
-void normal_task_cnt_inc();
-void normal_task_cnt_dec();
-int32_t normal_task_cnt_get();
-void endless_task_cnt_reset();
-void endless_task_cnt_inc();
-void endless_task_cnt_dec();
-int32_t endless_task_cnt_get();
+remote_cmd_t *create_remote_cmd();
+void delete_remote_cmd(remote_cmd_t *cmd);
 
-int process_opcode(uint32_t opcode, void *data);
-int create_local_simple_task(uint8_t flow, uint8_t duration, uint32_t opcode);
+local_cmd_t *create_local_cmd();
+void delete_local_cmd(local_cmd_t *cmd);
 
-bool is_task_handler_idle();
-void * main_task_handler(void* arg);
+void remote_cmd_init(remote_cmd_t *cmd, const char *component_id, \
+                     int32_t topic_id, int32_t opcode);
+int32_t remote_cmd_add_string(remote_cmd_t *cmd, const char *key, \
+              const char *value);
+int32_t remote_cmd_add_int(remote_cmd_t *cmd, const char *key, int32_t value);
+
 /**********************
  *  STATIC VARIABLES
  **********************/
@@ -153,4 +149,4 @@ void * main_task_handler(void* arg);
  *   STATIC FUNCTIONS
  **********************/
 
-#endif /* G_TASK_H */
+#endif /* G_CMD_PAYLOAD_H*/
