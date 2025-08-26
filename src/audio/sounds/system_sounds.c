@@ -12,7 +12,8 @@
 #endif
 #include <log.h>
 
-#include <audio.h>
+#include <audio/audio.h>
+#include <audio/sound.h>
 
 /*********************
  *      DEFINES

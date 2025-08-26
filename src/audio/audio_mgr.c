@@ -22,7 +22,7 @@
 #include <unistd.h>
 #include <errno.h>
 
-#include <audio.h>
+#include <audio/audio.h>
 
 /*********************
  *      DEFINES

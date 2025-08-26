@@ -19,8 +19,6 @@
 #include <stdint.h>
 #include <alsa/asoundlib.h>
 
-#include <log.h>
-
 /*********************
  *      DEFINES
  *********************/
