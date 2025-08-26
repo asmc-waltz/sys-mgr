@@ -1,3 +1,17 @@
+/**
+ * @file sys_utils.c
+ *
+ */
+
+/*********************
+ *      INCLUDES
+ *********************/
+// #define LOG_LEVEL LOG_LEVEL_TRACE
+#if defined(LOG_LEVEL)
+#warning "LOG_LEVEL defined locally will override the global setting in this file"
+#endif
+#include <log.h>
+
 #include <dbus/dbus.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -5,8 +19,6 @@
 
 #include <comm/dbus_comm.h>
 #include <sched/task.h>
-
-#include <log.h>
 
 // Encode remote_cmd_t into an existing DBusMessage
 bool encode_data_frame(DBusMessage *msg, const remote_cmd_t *cmd)
