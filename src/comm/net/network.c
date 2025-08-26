@@ -1,12 +1,55 @@
+/**
+ * @file network.c
+ *
+ */
+
+/*********************
+ *      INCLUDES
+ *********************/
+// #define LOG_LEVEL LOG_LEVEL_TRACE
+#if defined(LOG_LEVEL)
+#warning "LOG_LEVEL defined locally will override the global setting in this file"
+#endif
+#include <log.h>
+
 #include <stdio.h>
 #include <glib.h>
 #include <NetworkManager.h>
 
-#include <log.h>
 #include <comm/sys_comm.h>
 
+/*********************
+ *      DEFINES
+ *********************/
+
+/**********************
+ *      TYPEDEFS
+ **********************/
+
+/**********************
+ *  GLOBAL VARIABLES
+ **********************/
 NMClient *nm_client = NULL;
 
+/**********************
+ *  STATIC PROTOTYPES
+ **********************/
+
+/**********************
+ *  STATIC VARIABLES
+ **********************/
+
+/**********************
+ *      MACROS
+ **********************/
+
+/**********************
+ *   STATIC FUNCTIONS
+ **********************/
+
+/**********************
+ *   GLOBAL FUNCTIONS
+ **********************/
 NMClient * get_nm_client()
 {
     return nm_client;

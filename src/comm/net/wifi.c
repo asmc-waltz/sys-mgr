@@ -1,11 +1,31 @@
+/**
+ * @file wifi.c
+ *
+ */
+
+/*********************
+ *      INCLUDES
+ *********************/
+// #define LOG_LEVEL LOG_LEVEL_TRACE
+#if defined(LOG_LEVEL)
+#warning "LOG_LEVEL defined locally will override the global setting in this file"
+#endif
+#include <log.h>
+
 #include <stdio.h>
 #include <glib.h>
 #include <glib-object.h>
 #include <NetworkManager.h>
 
-#include <log.h>
 #include <comm/sys_comm.h>
 
+/*********************
+ *      DEFINES
+ *********************/
+
+/**********************
+ *      TYPEDEFS
+ **********************/
 typedef struct {
     GMainLoop *loop;
     NMClient *client;
@@ -13,6 +33,29 @@ typedef struct {
     gboolean done;
 } WifiConnectContext;
 
+/**********************
+ *  GLOBAL VARIABLES
+ **********************/
+
+/**********************
+ *  STATIC PROTOTYPES
+ **********************/
+
+/**********************
+ *  STATIC VARIABLES
+ **********************/
+
+/**********************
+ *      MACROS
+ **********************/
+
+/**********************
+ *   STATIC FUNCTIONS
+ **********************/
+
+/**********************
+ *   GLOBAL FUNCTIONS
+ **********************/
 /**
  * Disconnect the given Wi-Fi device from any connected AP.
  */

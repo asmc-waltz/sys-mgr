@@ -6,6 +6,12 @@
 /*********************
  *      INCLUDES
  *********************/
+// #define LOG_LEVEL LOG_LEVEL_TRACE
+#if defined(LOG_LEVEL)
+#warning "LOG_LEVEL defined locally will override the global setting in this file"
+#endif
+#include <log.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -17,7 +23,6 @@
 #include <errno.h>
 #include <signal.h>
 
-#include <log.h>
 #include <devices/imu.h>
 #include "kalman.h"
 

@@ -6,6 +6,12 @@
 /*********************
  *      INCLUDES
  *********************/
+// #define LOG_LEVEL LOG_LEVEL_TRACE
+#if defined(LOG_LEVEL)
+#warning "LOG_LEVEL defined locally will override the global setting in this file"
+#endif
+#include <log.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -15,7 +21,6 @@
 #include <linux/input.h>
 #include <sys/ioctl.h>
 
-#include <log.h>
 /*********************
  *      DEFINES
  *********************/
