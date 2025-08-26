@@ -1,21 +1,135 @@
+/**
+ * @file task_scheduler.c
+ *
+ */
+
+/*********************
+ *      INCLUDES
+ *********************/
+// #define LOG_LEVEL LOG_LEVEL_TRACE
+#if defined(LOG_LEVEL)
+#warning "LOG_LEVEL defined locally will override the global setting in this file"
+#endif
+#include <log.h>
+
 #include <signal.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <unistd.h>
+#include <string.h>
 #include <stdatomic.h>
 #include <stdbool.h>
 
-#include <dbus_comm.h>
+#include <comm/dbus_comm.h>
+#include <sched/workqueue.h>
+#include <sched/task.h>
 
-#include <workqueue.h>
-#include <task.h>
-#include <log.h>
+/*********************
+ *      DEFINES
+ *********************/
 
+/**********************
+ *      TYPEDEFS
+ **********************/
+
+/**********************
+ *  GLOBAL VARIABLES
+ **********************/
 extern volatile sig_atomic_t g_run;
 
+/**********************
+ *  STATIC PROTOTYPES
+ **********************/
+
+/**********************
+ *  STATIC VARIABLES
+ **********************/
 static atomic_int g_endless_task_cnt;
 static atomic_int g_normal_task_cnt;
 
+/**********************
+ *      MACROS
+ **********************/
+
+/**********************
+ *   STATIC FUNCTIONS
+ **********************/
+/*
+ * The non-blocking task will be started by the task handler and run in the
+ * background. Depending on the type of work, it could have a short, long,
+ * or endless duration. All such tasks must be controlled by g_run, which
+ * is also known as the common exit flag for the system.
+ */
+static void *non_blocking_task_thread(void *arg)
+{
+    work_t *w = (work_t *)arg;
+    int32_t ret = 0;
+
+    LOG_TRACE("TASK: [%d:%d:%d:%d] is started", \
+              w->type, w->flow, w->duration, w->opcode);
+
+    if (w->duration == ENDLESS) {
+        endless_task_cnt_inc();
+        ret = process_opcode_endless(w->opcode, NULL);
+    } else {
+        normal_task_cnt_inc();
+        ret = process_opcode(w->opcode, w->data);
+    }
+
+    // Check ret...
+    // TODO: Handle work done notification
+    LOG_TRACE("TASK: [%d:%d:%d:%d] is completed - return %d", \
+              w->type, w->flow, w->duration, w->opcode, ret);
+
+    // Free working data structures for non-blocking tasks.
+    if (w->duration == ENDLESS) {
+        endless_task_cnt_dec();
+    } else {
+        normal_task_cnt_dec();
+    }
+    delete_work(w);
+}
+
+static int32_t create_non_blocking_task(work_t *w)
+{
+    pthread_t thread_id;
+    int32_t ret;
+
+    ret = pthread_create(&thread_id, NULL, non_blocking_task_thread, w);
+    if (ret) {
+        LOG_FATAL("Failed to create worker thread: %s", strerror(ret));
+        return ret;
+    } else {
+        pthread_detach(thread_id);
+    }
+
+    return 0;
+}
+
+static int32_t create_blocking_task(work_t *w)
+{
+    int32_t ret = 0;
+
+    LOG_TRACE("TASK: [%d:%d:%d:%d] is started", \
+              w->type, w->flow, w->duration, w->opcode);
+
+    normal_task_cnt_inc();
+    ret = process_opcode(w->opcode, w->data);
+
+    // TODO: Handle work done notification
+    LOG_TRACE("TASK: [%d:%d:%d:%d] is completed - return %d", \
+              w->type, w->flow, w->duration, w->opcode, ret);
+
+    // The working data structures for normal tasks need to be freed
+    delete_work(w);
+    normal_task_cnt_dec();
+
+    return ret;
+}
+
+/**********************
+ *   GLOBAL FUNCTIONS
+ **********************/
 /* Normal task counter */
 void normal_task_cnt_reset(void)
 {
@@ -41,7 +155,6 @@ int32_t normal_task_cnt_get(void)
 }
 
 /* Endless task counter */
-
 void endless_task_cnt_reset(void)
 {
     atomic_store(&g_endless_task_cnt, 0);
@@ -63,78 +176,6 @@ int32_t endless_task_cnt_get(void)
 
     val = atomic_load(&g_endless_task_cnt);
     return val;
-}
-
-/*
- * The non-blocking task will be started by the task handler and run in the
- * background. Depending on the type of work, it could have a short, long,
- * or endless duration. All such tasks must be controlled by g_run, which
- * is also known as the common exit flag for the system.
- */
-static void *non_blocking_task_thread(void *arg)
-{
-    work_t *w = (work_t *)arg;
-    int rc = 0;
-
-    LOG_TRACE("TASK: [%d:%d:%d:%d] is started", \
-              w->type, w->flow, w->duration, w->opcode);
-
-    if (w->duration == ENDLESS) {
-        endless_task_cnt_inc();
-        rc = process_opcode_endless(w->opcode, NULL);
-    } else {
-        normal_task_cnt_inc();
-        rc = process_opcode(w->opcode, w->data);
-    }
-
-    // TODO: Handle work done notification
-    LOG_TRACE("TASK: [%d:%d:%d:%d] is completed - return %d", \
-              w->type, w->flow, w->duration, w->opcode, rc);
-
-    // Free working data structures for non-blocking tasks.
-    if (w->duration == ENDLESS) {
-        endless_task_cnt_dec();
-    } else {
-        normal_task_cnt_dec();
-    }
-    delete_work(w);
-}
-
-static int create_non_blocking_task(work_t *w)
-{
-    pthread_t thread_id;
-    int ret;
-
-    ret = pthread_create(&thread_id, NULL, non_blocking_task_thread, w);
-    if (ret) {
-        LOG_FATAL("Failed to create worker thread: %s", strerror(ret));
-        return ret;
-    } else {
-        pthread_detach(thread_id);
-    }
-
-    return EXIT_SUCCESS;
-}
-
-static int create_blocking_task(work_t *w)
-{
-    int rc = 0;
-
-    LOG_TRACE("TASK: [%d:%d:%d:%d] is started", \
-              w->type, w->flow, w->duration, w->opcode);
-
-    normal_task_cnt_inc();
-    rc = process_opcode(w->opcode, w->data);
-
-    // TODO: Handle work done notification
-    LOG_TRACE("TASK: [%d:%d:%d:%d] is completed - return %d", \
-              w->type, w->flow, w->duration, w->opcode, rc);
-
-    // The working data structures for normal tasks need to be freed
-    delete_work(w);
-    normal_task_cnt_dec();
-
-    return rc;
 }
 
 bool is_task_handler_idle()
@@ -163,7 +204,7 @@ bool is_task_handler_idle()
 void *main_task_handler(void* arg)
 {
     work_t *w = NULL;
-    int rc = 0;
+    int32_t ret = 0;
 
     normal_task_cnt_reset();
     endless_task_cnt_reset();
@@ -198,11 +239,11 @@ void *main_task_handler(void* arg)
         if (w->flow == BLOCK) {
             // run blocking task; return after it completes
             // other tasks in queue wait until it's done
-            rc = create_blocking_task(w);
+            ret = create_blocking_task(w);
         } else if (w->flow == NON_BLOCK) {
             // create a thread to handle requests in the background
             // the function returns immediately after the thread is created
-            rc = create_non_blocking_task(w);
+            ret = create_non_blocking_task(w);
         }
     };
 
