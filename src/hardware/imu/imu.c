@@ -52,17 +52,17 @@ static const char *DEFAULT_IIO_BASE = "/sys/bus/iio/devices/iio:device0/";
 
 /* module state */
 static char iio_base[SYSFS_PATH_MAX];
-static int sample_hz = DEFAULT_SAMPLE_HZ;
+static int32_t sample_hz = DEFAULT_SAMPLE_HZ;
 
 /* Kalman filters */
 static struct kalman k_roll, k_pitch;
 static float yaw_integral = 0.0f; /* degrees */
 
 /* thread + sync */
-static int imu_running = 0;
+static int32_t imu_running = 0;
 static pthread_mutex_t angles_lock = PTHREAD_MUTEX_INITIALIZER;
 static struct imu_angles shared_angles = {0.0f, 0.0f, 0.0f};
-static int debug_log = 0;
+static int32_t debug_log = 0;
 
 /* offsets (stored in final units: accel -> g, gyro -> deg/s)
  * NOTE: accel offsets chosen so that after subtracting offsets:
@@ -89,9 +89,9 @@ static struct {
  */
 static struct {
     float accel_scale;
-    int have_accel_scale;
+    int32_t have_accel_scale;
     float gyro_scale;
-    int have_gyro_scale;
+    int32_t have_gyro_scale;
 
     /* conversion factors decided at calibration */
     float accel_to_g_factor;  /* multiply scaled accel to get g */
@@ -110,11 +110,11 @@ static const float BIAS_ADAPT_ALPHA    = 0.0008f;/* slow adapt rate */
 /**********************
  *   STATIC FUNCTIONS
  **********************/
-static int read_sysfs_float_file(const char *path, float *out)
+static int32_t read_sysfs_float_file(const char *path, float *out)
 {
     FILE *f;
     double tmp;
-    int ret = -1;
+    int32_t ret = -1;
     if (!path || !out) return -1;
     f = fopen(path, "r");
     if (!f) return -1;
@@ -126,7 +126,7 @@ static int read_sysfs_float_file(const char *path, float *out)
     return ret;
 }
 
-static int read_sysfs_name(const char *name, float *out)
+static int32_t read_sysfs_name(const char *name, float *out)
 {
     char path[SYSFS_PATH_MAX];
     if (!name || !out) return -1;
@@ -150,8 +150,8 @@ static void load_mount_matrix(const char *name, float m_out[9])
         return;
     }
 
-    int cnt = 0;
-    for (int i = 0; i < 9; i++) {
+    int32_t cnt = 0;
+    for (int32_t i = 0; i < 9; i++) {
         double tmp;
         if (fscanf(f, "%lf", &tmp) == 1) {
             m_out[cnt++] = (float)tmp;
@@ -213,13 +213,13 @@ static void detect_scales(void)
  *  - DO NOT convert accel to g or gyro to deg/s here (we detect units in calibration)
  *  returns 0 on success
  */
-static int read_raw_scaled_no_unit_convert(float *ax, float *ay, float *az,
+static int32_t read_raw_scaled_no_unit_convert(float *ax, float *ay, float *az,
                        float *gx, float *gy, float *gz)
 {
     float v;
     float a_raw[3] = {0.0f,0.0f,0.0f};
     float g_raw[3] = {0.0f,0.0f,0.0f};
-    int ret;
+    int32_t ret;
 
     /* accel */
     ret = read_sysfs_name("in_accel_x_raw", &v);
@@ -256,7 +256,7 @@ static int read_raw_scaled_no_unit_convert(float *ax, float *ay, float *az,
  * Public read: returns accel in g and gyro in deg/s
  * If calibration hasn't set accel_to_g_factor/gyro_to_deg_factor yet, values may be raw*scale
  */
-int imu_kalman_read_raw(float *ax, float *ay, float *az,
+int32_t imu_kalman_read_raw(float *ax, float *ay, float *az,
             float *gx, float *gy, float *gz)
 {
     float a0,a1,a2,g0,g1,g2;
@@ -279,9 +279,9 @@ int imu_kalman_read_raw(float *ax, float *ay, float *az,
 }
 
 /* ---------- calibration implementation ---------- */
-int imu_kalman_calibrate(void)
+int32_t imu_kalman_calibrate(void)
 {
-    int i, ret;
+    int32_t i, ret;
     double ax_sum = 0.0, ay_sum = 0.0, az_sum = 0.0;
     double gx_sum = 0.0, gy_sum = 0.0, gz_sum = 0.0;
     double mag_sum = 0.0;
@@ -396,7 +396,7 @@ static float compute_adaptive_r_factor(float accel_mag_g, float innovation_deg)
 }
 
 /* ---------- IMU thread ---------- */
-static int imu_fn_handler()
+static int32_t imu_fn_handler()
 {
     struct timespec t_prev, t_now;
     float axs, ays, azs, gxs, gys, gzs;
@@ -404,7 +404,7 @@ static int imu_fn_handler()
     float roll_acc, pitch_acc;
     float roll_f, pitch_f;
     float dt;
-    int sleep_us;
+    int32_t sleep_us;
     float last_roll = 0.0f, last_pitch = 0.0f;
 
     LOG_INFO("start path=%s hz=%d", iio_base, sample_hz);
@@ -519,9 +519,9 @@ static int imu_fn_handler()
 
 /* ---------- Public API ---------- */
 
-int imu_kalman_init(const char *path, int hz, float q_angle, float q_bias, float r_measure)
+int32_t imu_kalman_init(const char *path, int32_t hz, float q_angle, float q_bias, float r_measure)
 {
-    int ret;
+    int32_t ret;
 
     if (!path) path = DEFAULT_IIO_BASE;
 
@@ -576,7 +576,7 @@ int imu_kalman_init(const char *path, int hz, float q_angle, float q_bias, float
 }
 int32_t imu_fn_thread_handler()
 {
-    int ret;
+    int32_t ret;
 
     if (imu_running) {
         LOG_WARN("imu already running");
@@ -606,7 +606,7 @@ void imu_fn_thread_stop(void)
     imu_running = 0;
 }
 
-int imu_kalman_is_running(void)
+int32_t imu_kalman_is_running(void)
 {
     return imu_running;
 }
@@ -632,7 +632,7 @@ struct imu_angles imu_get_angles(void)
     return out;
 }
 
-void imu_kalman_set_debug(int on)
+void imu_kalman_set_debug(int32_t on)
 {
     debug_log = on ? 1 : 0;
     LOG_INFO("imu_kalman_set_debug %d", debug_log);

@@ -16,7 +16,7 @@ typedef struct {
 /**
  * Disconnect the given Wi-Fi device from any connected AP.
  */
-int wifi_disconnect_device(const char *iface_name)
+int32_t wifi_disconnect_device(const char *iface_name)
 {
     NMDevice *dev;
     GError *error = NULL;
@@ -47,14 +47,14 @@ int wifi_disconnect_device(const char *iface_name)
  * Check if given Wi-Fi device is connected to target SSID.
  * Return 1 if connected, 0 if not connected, -1 on error.
  */
-int wifi_is_connected_to_ssid(const char *iface_name, const char *ssid)
+int32_t wifi_is_connected_to_ssid(const char *iface_name, const char *ssid)
 {
     NMDevice *dev;
     NMDeviceWifi *wifi_dev;
     NMAccessPoint *active_ap;
     GBytes *active_ssid_bytes;
     char *active_ssid_str;
-    int connected;
+    int32_t connected;
 
     dev = g_nm_device_get_by_iface(iface_name);
     if (!dev) {
@@ -97,7 +97,7 @@ int wifi_is_connected_to_ssid(const char *iface_name, const char *ssid)
     return connected;
 }
 
-int wifi_list_access_points(const char *iface_name)
+int32_t wifi_list_access_points(const char *iface_name)
 {
     NMDevice *dev;
     NMDeviceWifi *wifi_device;
@@ -106,7 +106,7 @@ int wifi_list_access_points(const char *iface_name)
     GBytes *ssid_bytes;
     char *ssid_str;
     guint i;
-    int strength;
+    int32_t strength;
     NM80211ApSecurityFlags sec_flags;
 
     dev = g_nm_device_get_by_iface(iface_name);
@@ -155,7 +155,7 @@ NMAccessPoint *find_ap_on_wifi_device(NMDevice *device, \
 {
     const GPtrArray *aps;
     NMAccessPoint *ap;
-    int i;
+    int32_t i;
 
     g_return_val_if_fail(NM_IS_DEVICE_WIFI(device), NULL);
 
@@ -229,7 +229,7 @@ NMConnection *find_connection_on_wifi_device(NMDevice *dev, \
     const GPtrArray *avail_cons;
     gboolean name_match;
     NMConnection *connection;
-    int i;
+    int32_t i;
 
     g_return_val_if_fail(NM_IS_DEVICE_WIFI(dev), NULL);
     g_return_val_if_fail(NM_IS_ACCESS_POINT(ap), NULL);
@@ -453,7 +453,7 @@ void wifi_connect_flow(NMClient *client, NMDevice *dev, NMAccessPoint *ap,
 /**
  * Public API entry point: connect to Wi-Fi SSID on interface.
  */
-int wifi_connect_to_ssid(const char *iface_name, const char *ssid,
+int32_t wifi_connect_to_ssid(const char *iface_name, const char *ssid,
                          const char *password)
 {
     NMClient *client;

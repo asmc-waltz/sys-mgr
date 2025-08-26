@@ -21,7 +21,7 @@ bool encode_data_frame(DBusMessage *msg, const remote_cmd_t *cmd)
 
     dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "(siiv)", &array_iter);
 
-    for (int i = 0; i < cmd->entry_count; ++i) {
+    for (int32_t i = 0; i < cmd->entry_count; ++i) {
         const payload_t *entry = &cmd->entries[i];
 
         dbus_message_iter_open_container(&array_iter, DBUS_TYPE_STRUCT, NULL, &struct_iter);
@@ -87,7 +87,7 @@ bool decode_data_frame(DBusMessage *msg, remote_cmd_t *out)
 
     dbus_message_iter_recurse(&iter, &array_iter);
 
-    int i = 0;
+    int32_t i = 0;
     while (dbus_message_iter_get_arg_type(&array_iter) == DBUS_TYPE_STRUCT && i < MAX_ENTRIES) {
         payload_t *entry = &out->entries[i];
         dbus_message_iter_recurse(&array_iter, &struct_iter);
@@ -168,14 +168,14 @@ void create_signal_frame(remote_cmd_t *cmd)
 }
 
 // Send a DBus method call with encoded remote_cmd_t
-int send_method_call(DBusConnection *conn)
+int32_t send_method_call(DBusConnection *conn)
 {
     DBusMessage *msg;
     DBusPendingCall *pending;
     DBusMessage *reply;
     DBusMessageIter reply_args;
     remote_cmd_t cmd;
-    int ret = EXIT_SUCCESS;
+    int32_t ret = EXIT_SUCCESS;
 
     msg = dbus_message_new_method_call(SYS_MGR_DBUS_SER,
                                        SYS_MGR_DBUS_OBJ_PATH,
@@ -229,7 +229,7 @@ int send_method_call(DBusConnection *conn)
 }
 
 // Send a DBus signal with encoded remote_cmd_t
-int send_signal(DBusConnection *conn)
+int32_t send_signal(DBusConnection *conn)
 {
     DBusMessage *msg;
     remote_cmd_t cmd;
@@ -263,12 +263,12 @@ int send_signal(DBusConnection *conn)
     return EXIT_SUCCESS;
 }
 
-// Main entry point of the CLI test application
-int main(int argc, char **argv)
+// Main entry point32_t of the CLI test application
+int32_t main(int32_t argc, char **argv)
 {
     DBusError err;
     DBusConnection *conn;
-    int ret;
+    int32_t ret;
 
     dbus_error_init(&err);
     conn = dbus_bus_get(DBUS_BUS_SYSTEM, &err);

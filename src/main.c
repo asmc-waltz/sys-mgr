@@ -39,7 +39,7 @@
 /**********************
  *  GLOBAL VARIABLES
  **********************/
-extern int event_fd;
+extern int32_t event_fd;
 volatile sig_atomic_t g_run = 1;
 
 /**********************

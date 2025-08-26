@@ -44,7 +44,7 @@
 /**********************
  *   STATIC FUNCTIONS
  **********************/
-static int open_event_device(int id)
+static int32_t open_event_device(int32_t id)
 {
     char path[MAX_PATH_LEN];
     snprintf(path, sizeof(path), "/dev/input/event%d", id);
@@ -54,9 +54,9 @@ static int open_event_device(int id)
 /**********************
  *   GLOBAL FUNCTIONS
  **********************/
-int rumble_trigger(uint32_t event_id, uint32_t ff_type, uint32_t duration)
+int32_t rumble_trigger(uint32_t event_id, uint32_t ff_type, uint32_t duration)
 {
-    int fd;
+    int32_t fd;
     struct ff_effect effect;
     struct input_event play;
 

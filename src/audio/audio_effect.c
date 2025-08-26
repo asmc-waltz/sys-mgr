@@ -54,7 +54,7 @@ static inline uint32_t rd_u32le(const uint8_t *p) { return (uint32_t)(p[0] | (p[
  *   STATIC FUNCTIONS
  **********************/
 /* parse "fmt " chunk payload (pointer to payload, size) into audio_format */
-static int parse_fmt_chunk(const uint8_t *p, uint32_t size, struct audio_format *out)
+static int32_t parse_fmt_chunk(const uint8_t *p, uint32_t size, struct audio_format *out)
 {
     if (size < 16) return AUDIO_E_INVAL;
 
@@ -107,7 +107,7 @@ static int parse_fmt_chunk(const uint8_t *p, uint32_t size, struct audio_format 
 }
 
 /* parse mmap'ed WAV file: find fmt + data chunk */
-static int wav_parse_mmap(const uint8_t *base, size_t size, struct wav_map *wm)
+static int32_t wav_parse_mmap(const uint8_t *base, size_t size, struct wav_map *wm)
 {
     /* minimal RIFF header size = 12 bytes (RIFF + size + WAVE) */
     if (size < 12) return AUDIO_E_INVAL;
@@ -116,8 +116,8 @@ static int wav_parse_mmap(const uint8_t *base, size_t size, struct wav_map *wm)
 
     const uint8_t *p = base + 12;
     const uint8_t *end = base + size;
-    int have_fmt = 0;
-    int have_data = 0;
+    int32_t have_fmt = 0;
+    int32_t have_data = 0;
 
     while (p + 8 <= end) {
         const uint8_t *chunk_id = p;
@@ -128,7 +128,7 @@ static int wav_parse_mmap(const uint8_t *base, size_t size, struct wav_map *wm)
         if (payload + chunk_size > end) return AUDIO_E_INVAL;
 
         if (memcmp(chunk_id, "fmt ", 4) == 0) {
-            int ret = parse_fmt_chunk(payload, chunk_size, &wm->fmt);
+            int32_t ret = parse_fmt_chunk(payload, chunk_size, &wm->fmt);
             if (ret < 0) return ret;
             have_fmt = 1;
         } else if (memcmp(chunk_id, "data", 4) == 0) {
@@ -160,12 +160,12 @@ snd_pcm_format_t audio_bits_to_sndfmt(unsigned bits)
 }
 
 /* public: open+map file and parse */
-int wav_map_open(const char *path, struct wav_map *out)
+int32_t wav_map_open(const char *path, struct wav_map *out)
 {
-    int fd;
+    int32_t fd;
     struct stat st;
     void *base;
-    int ret;
+    int32_t ret;
 
     if (!path || !out) return AUDIO_E_INVAL;
     memset(out, 0, sizeof(*out));
@@ -225,9 +225,9 @@ void wav_map_close(struct wav_map *wm)
 }
 
 /* play from mapping (handles format mismatch options) */
-int audio_play_wav_map(struct audio_mgr *mgr, const struct wav_map *wm)
+int32_t audio_play_wav_map(struct audio_mgr *mgr, const struct wav_map *wm)
 {
-    int ret;
+    int32_t ret;
 
     if (!mgr || !wm) return AUDIO_E_INVAL;
 
@@ -286,10 +286,10 @@ int audio_play_wav_map(struct audio_mgr *mgr, const struct wav_map *wm)
 }
 
 /* convenience: open->play->close */
-int audio_play_wav_file(struct audio_mgr *mgr, const char *path)
+int32_t audio_play_wav_file(struct audio_mgr *mgr, const char *path)
 {
     struct wav_map wm;
-    int ret;
+    int32_t ret;
 
     ret = wav_map_open(path, &wm);
     if (ret < 0) return ret;

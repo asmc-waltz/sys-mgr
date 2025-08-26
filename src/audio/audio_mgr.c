@@ -56,9 +56,9 @@ static float clamp01(float v)
 }
 
 /* helper: recover from xrun or suspend */
-static int recover_xrun(snd_pcm_t *pcm, int err)
+static int32_t recover_xrun(snd_pcm_t *pcm, int32_t err)
 {
-    int ret;
+    int32_t ret;
 
     if (err == -EPIPE) {
         ret = snd_pcm_prepare(pcm);
@@ -76,12 +76,12 @@ static int recover_xrun(snd_pcm_t *pcm, int err)
 }
 
 /* configure hw params for mgr->fmt */
-static int set_hw_params(struct audio_mgr *mgr,
+static int32_t set_hw_params(struct audio_mgr *mgr,
              snd_pcm_hw_params_t *params,
              uint32_t buffer_time_us,
              uint32_t period_time_us)
 {
-    int ret;
+    int32_t ret;
     uint32_t rate = mgr->fmt.sample_rate;
 
     snd_pcm_hw_params_any(mgr->pcm, params);
@@ -112,12 +112,12 @@ static int set_hw_params(struct audio_mgr *mgr,
 }
 
 /* internal init helper used by init and reinit */
-static int internal_open_and_config(struct audio_mgr *mgr,
+static int32_t internal_open_and_config(struct audio_mgr *mgr,
                     uint32_t buffer_time_us,
                     uint32_t period_time_us)
 {
     snd_pcm_hw_params_t *params;
-    int ret;
+    int32_t ret;
 
     if (!mgr || !mgr->device_name) return AUDIO_E_INVAL;
 
@@ -152,7 +152,7 @@ static int internal_open_and_config(struct audio_mgr *mgr,
 }
 
 /* copy + apply per-channel + master gain into ALSA mmap ring */
-static int mmap_copy_apply_gain(struct audio_mgr *mgr,
+static int32_t mmap_copy_apply_gain(struct audio_mgr *mgr,
                 const void *sret_void,
                 snd_pcm_uframes_t frames,
                 const snd_pcm_channel_area_t *areas,
@@ -172,8 +172,8 @@ static int mmap_copy_apply_gain(struct audio_mgr *mgr,
         for (i = 0; i < frames; ++i) {
             for (unsigned c = 0; c < ch; ++c) {
                 float g = mgr->master_gain * mgr->ch_gain[c];
-                int s = (int)sret[c] - 128;
-                int out = (int)(s * g) + 128;
+                int32_t s = (int)sret[c] - 128;
+                int32_t out = (int)(s * g) + 128;
                 if (out < 0) out = 0; if (out > 255) out = 255;
                 dst[c] = (uint8_t)out;
             }
@@ -240,7 +240,7 @@ static int mmap_copy_apply_gain(struct audio_mgr *mgr,
  *   GLOBAL FUNCTIONS
  **********************/
 /* Initialize the manager; device_name will be duplicated internally. */
-int audio_mgr_init(struct audio_mgr *mgr, \
+int32_t audio_mgr_init(struct audio_mgr *mgr, \
            const char *device_name, \
            snd_pcm_format_t pcm_format, \
            uint32_t channels, \
@@ -248,7 +248,7 @@ int audio_mgr_init(struct audio_mgr *mgr, \
            uint32_t buffer_time_us, \
            uint32_t period_time_us)
 {
-    int ret;
+    int32_t ret;
 
     if (!mgr || !device_name) return AUDIO_E_INVAL;
 
@@ -292,7 +292,7 @@ int audio_mgr_init(struct audio_mgr *mgr, \
 /* Reinitialize manager with a new format. This closes existing handle and
  * configures ALSA again with same device_name saved from init.
  */
-int audio_mgr_reinit(struct audio_mgr *mgr, \
+int32_t audio_mgr_reinit(struct audio_mgr *mgr, \
              snd_pcm_format_t pcm_format, \
              uint32_t channels, \
              uint32_t sample_rate)
@@ -318,10 +318,10 @@ int audio_mgr_reinit(struct audio_mgr *mgr, \
 }
 
 /* prepare (exposed) */
-int audio_mgr_prepare(struct audio_mgr *mgr)
+int32_t audio_mgr_prepare(struct audio_mgr *mgr)
 {
     if (!mgr || !mgr->pcm) return AUDIO_E_INVAL;
-    int ret = snd_pcm_prepare(mgr->pcm);
+    int32_t ret = snd_pcm_prepare(mgr->pcm);
     if (ret < 0) {
         LOG_ERROR("snd_pcm_prepare: %s", snd_strerror(ret));
         return AUDIO_ERR;
@@ -347,7 +347,7 @@ void audio_mgr_release(struct audio_mgr *mgr)
 }
 
 /* set options */
-int audio_mgr_set_auto_reinit(struct audio_mgr *mgr, int enable)
+int32_t audio_mgr_set_auto_reinit(struct audio_mgr *mgr, int32_t enable)
 {
     if (!mgr) return AUDIO_E_INVAL;
     mgr->auto_reinit = enable ? 1 : 0;
@@ -355,7 +355,7 @@ int audio_mgr_set_auto_reinit(struct audio_mgr *mgr, int enable)
     return AUDIO_OK;
 }
 
-int audio_mgr_set_skip_format_check(struct audio_mgr *mgr, int enable)
+int32_t audio_mgr_set_skip_format_check(struct audio_mgr *mgr, int32_t enable)
 {
     if (!mgr) return AUDIO_E_INVAL;
     mgr->skip_format_check = enable ? 1 : 0;
@@ -364,7 +364,7 @@ int audio_mgr_set_skip_format_check(struct audio_mgr *mgr, int enable)
 }
 
 /* gain control */
-int audio_mgr_set_master_gain(struct audio_mgr *mgr, float gain)
+int32_t audio_mgr_set_master_gain(struct audio_mgr *mgr, float gain)
 {
     if (!mgr) return AUDIO_E_INVAL;
     mgr->master_gain = clamp01(gain);
@@ -372,7 +372,7 @@ int audio_mgr_set_master_gain(struct audio_mgr *mgr, float gain)
     return AUDIO_OK;
 }
 
-int audio_mgr_set_channel_gain(struct audio_mgr *mgr, uint32_t ch, float gain)
+int32_t audio_mgr_set_channel_gain(struct audio_mgr *mgr, uint32_t ch, float gain)
 {
     if (!mgr) return AUDIO_E_INVAL;
     if (ch >= mgr->fmt.channels || ch >= AUDIO_MAX_CHANNELS) return AUDIO_E_INVAL;
@@ -381,7 +381,7 @@ int audio_mgr_set_channel_gain(struct audio_mgr *mgr, uint32_t ch, float gain)
     return AUDIO_OK;
 }
 
-int audio_mgr_set_channel_gains(struct audio_mgr *mgr, const float *gains, uint32_t n)
+int32_t audio_mgr_set_channel_gains(struct audio_mgr *mgr, const float *gains, uint32_t n)
 {
     if (!mgr || !gains) return AUDIO_E_INVAL;
     if (n < mgr->fmt.channels) return AUDIO_E_INVAL;
@@ -394,7 +394,7 @@ int audio_mgr_set_channel_gains(struct audio_mgr *mgr, const float *gains, uint3
 /* Write 'frames' frames from sret into ALSA ring using mmap interface.
  * sret must be interleaved PCM matching mgr->fmt.
  */
-int audio_mgr_write_mmap(struct audio_mgr *mgr, const void *sret, size_t frames)
+int32_t audio_mgr_write_mmap(struct audio_mgr *mgr, const void *sret, size_t frames)
 {
     const snd_pcm_channel_area_t *areas;
     snd_pcm_uframes_t offset, avail;
@@ -434,7 +434,7 @@ int audio_mgr_write_mmap(struct audio_mgr *mgr, const void *sret, size_t frames)
         if ((snd_pcm_uframes_t)left < avail) avail = (snd_pcm_uframes_t)left;
 
         /* apply gain while copying into ALSA buffer */
-        int mret = mmap_copy_apply_gain(mgr, sret, avail, areas, offset);
+        int32_t mret = mmap_copy_apply_gain(mgr, sret, avail, areas, offset);
         if (mret < 0) {
             (void)snd_pcm_mmap_commit(mgr->pcm, offset, 0);
             LOG_ERROR("mmap copy apply gain failed");

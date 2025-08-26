@@ -18,7 +18,7 @@ void set_nm_client( NMClient *client)
     nm_client = client;
 }
 
-int network_manager_comm_init()
+int32_t network_manager_comm_init()
 {
     g_autoptr(GError) error = NULL;
     NMClient *client = NULL;
@@ -64,7 +64,7 @@ NMDevice * g_nm_device_get_by_iface(const char *exp_iface)
 }
 
 // TODO: Listen to state change signal from NM
-int disconnect_interface(const char *exp_iface)
+int32_t disconnect_interface(const char *exp_iface)
 {
     g_autoptr(GError) error = NULL;
     NMDevice *dev = g_nm_device_get_by_iface(exp_iface);

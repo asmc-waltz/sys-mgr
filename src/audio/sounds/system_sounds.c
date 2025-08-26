@@ -42,12 +42,12 @@ static struct audio_mgr mgr;
 /**********************
  *   GLOBAL FUNCTIONS
  **********************/
-int snd_sys_init()
+int32_t snd_sys_init()
 {
     const char *dev = "default";
     const char *sys_snd = "/usr/share/sounds/sound-icons/prompt.wav";
     struct wav_map first;
-    int ret;
+    int32_t ret;
 
     /* 1) mmap+parse first file to obtain its format */
     ret = wav_map_open(sys_snd, &first);
@@ -98,9 +98,9 @@ void snd_sys_release()
     audio_mgr_release(&mgr);
 }
 
-int audio_play_sound(const char *snd_file)
+int32_t audio_play_sound(const char *snd_file)
 {
-    int ret;
+    int32_t ret;
 
     /*
      * play sound file by convenience function (open->play->close).
