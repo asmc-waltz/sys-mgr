@@ -19,7 +19,9 @@
 #include <comm/cmd_payload.h>
 #include <sched/workqueue.h>
 #include <sched/task.h>
-#include <devices/imu.h>
+#include <hw/imu.h>
+#include <hw/common.h>
+#include <audio/sound.h>
 
 /*********************
  *      DEFINES

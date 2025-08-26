@@ -21,6 +21,8 @@
 #include <linux/input.h>
 #include <sys/ioctl.h>
 
+#include <hw/common.h>
+
 /*********************
  *      DEFINES
  *********************/

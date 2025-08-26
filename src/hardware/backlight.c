@@ -15,6 +15,7 @@
 #include <stdint.h>
 
 #include <comm/sys_comm.h>
+#include <hw/common.h>
 
 /*********************
  *      DEFINES

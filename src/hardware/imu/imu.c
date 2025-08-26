@@ -23,7 +23,7 @@
 #include <errno.h>
 #include <signal.h>
 
-#include <devices/imu.h>
+#include <hw/imu.h>
 #include "kalman.h"
 
 /*********************
