@@ -6,6 +6,12 @@
 /*********************
  *      INCLUDES
  *********************/
+// #define LOG_LEVEL LOG_LEVEL_TRACE
+#if defined(LOG_LEVEL)
+#warning "LOG_LEVEL defined locally will override the global setting in this file"
+#endif
+#include <log.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,9 +21,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include <sys_comm.h>
-
-#include <log.h>
+#include <comm/sys_comm.h>
 
 /*********************
  *      DEFINES
@@ -51,10 +55,10 @@
  *   GLOBAL FUNCTIONS
  **********************/
 
-static int __sf_fs_write_internal(const char *path,  const char *data, \
-                                  size_t len, int append)
+static int32_t __sf_fs_write_internal(const char *path,  const char *data, \
+                                  size_t len, int32_t append)
 {
-    int fd, ret, flags;
+    int32_t fd, ret, flags;
 
     if (!path || !data || len == 0) {
         LOG_ERROR("invalid argument");
@@ -86,19 +90,19 @@ static int __sf_fs_write_internal(const char *path,  const char *data, \
     return 0;
 }
 
-int gf_fs_write_file(const char *path, const char *data, size_t len)
+int32_t gf_fs_write_file(const char *path, const char *data, size_t len)
 {
     return __sf_fs_write_internal(path, data, len, 0);
 }
 
-int gf_fs_append_file(const char *path, const char *data, size_t len)
+int32_t gf_fs_append_file(const char *path, const char *data, size_t len)
 {
     return __sf_fs_write_internal(path, data, len, 1);
 }
 
 char *gf_fs_read_file(const char *path, size_t *out_len)
 {
-    int fd, ret;
+    int32_t fd, ret;
     char *buf;
     off_t size;
 
@@ -139,14 +143,14 @@ char *gf_fs_read_file(const char *path, size_t *out_len)
     buf[size] = '\0';
     *out_len = size;
 
-    LOG_INFO("read from %s, len=%zu", path, size);
+    LOG_INFO("read from %s, len=%lld", path, (long long)size);
     LOG_DEBUG("content:\n%.*s", (int)size, buf);
 
     close(fd);
     return buf;
 }
 
-int gf_fs_file_exists(const char *path)
+int32_t gf_fs_file_exists(const char *path)
 {
     struct stat st;
 

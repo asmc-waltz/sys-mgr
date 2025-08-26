@@ -4,7 +4,7 @@
 #include <NetworkManager.h>
 
 #include <log.h>
-#include <sys_comm.h>
+#include <comm/sys_comm.h>
 
 typedef struct {
     GMainLoop *loop;
