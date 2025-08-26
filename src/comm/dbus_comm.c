@@ -69,7 +69,7 @@ static int32_t encode_data_frame(DBusMessage *msg, const remote_cmd_t *cmd)
     dbus_message_iter_init_append(msg, &iter);
 
     dbus_message_iter_append_basic(&iter, DBUS_TYPE_STRING, &cmd->component_id);
-    dbus_message_iter_append_basic(&iter, DBUS_TYPE_INT32, &cmd->topic_id);
+    dbus_message_iter_append_basic(&iter, DBUS_TYPE_INT32, &cmd->umid);
     dbus_message_iter_append_basic(&iter, DBUS_TYPE_INT32, &cmd->opcode);
 
     dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "(siiv)", &array_iter);
@@ -132,7 +132,7 @@ static int32_t decode_data_frame(DBusMessage *msg, remote_cmd_t *out)
     dbus_message_iter_get_basic(&iter, &out->component_id);
     dbus_message_iter_next(&iter);
 
-    dbus_message_iter_get_basic(&iter, &out->topic_id);
+    dbus_message_iter_get_basic(&iter, &out->umid);
     dbus_message_iter_next(&iter);
 
     dbus_message_iter_get_basic(&iter, &out->opcode);
@@ -202,7 +202,7 @@ static int32_t dispatch_cmd_from_message(DBusMessage *msg)
     }
 
     LOG_INFO("Received frame from component: %s", cmd->component_id);
-    LOG_INFO("Topic: %d, Opcode: %d", cmd->topic_id, cmd->opcode);
+    LOG_INFO("Message ID: %d, Opcode: %d", cmd->umid, cmd->opcode);
 
     for (i = 0; i < cmd->entry_count; ++i) {
         payload_t *entry = &cmd->entries[i];

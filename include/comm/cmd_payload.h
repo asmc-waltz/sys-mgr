@@ -21,7 +21,7 @@
 /* Go001 DBus message frame
     STRUCT {
         STRING   component_id;
-        INT32    topic_id;
+        INT32    umid;
         INT32    opcode;
 
         ARRAY of STRUCT {
@@ -43,7 +43,7 @@ typedef enum {
     TPC_NONE = 0,
     TPC_HW,
     TPC_NET,
-} topic_id_t;
+} umid_t;
 
 typedef enum {
     OP_NONE = 0,
@@ -96,7 +96,7 @@ typedef struct {
 // Top-level data frame structure
 typedef struct {
     const char *component_id;    // Identifier of the sender
-    uint32_t topic_id;            // Topic ID
+    uint32_t umid;            // Topic ID
     uint32_t opcode;              // Operation code
     uint32_t entry_count;         // Number of entries in the payload
     payload_t entries[MAX_ENTRIES]; // Payload entries
@@ -128,7 +128,7 @@ local_cmd_t *create_local_cmd();
 void delete_local_cmd(local_cmd_t *cmd);
 
 void remote_cmd_init(remote_cmd_t *cmd, const char *component_id, \
-                     int32_t topic_id, int32_t opcode);
+                     int32_t umid, int32_t opcode);
 int32_t remote_cmd_add_string(remote_cmd_t *cmd, const char *key, \
               const char *value);
 int32_t remote_cmd_add_int(remote_cmd_t *cmd, const char *key, int32_t value);

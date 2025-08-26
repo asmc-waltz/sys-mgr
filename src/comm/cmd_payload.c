@@ -96,12 +96,12 @@ void delete_local_cmd(local_cmd_t *cmd)
 }
 
 void remote_cmd_init(remote_cmd_t *cmd, const char *component_id, \
-                     int32_t topic_id, int32_t opcode)
+                     int32_t umid, int32_t opcode)
 {
     int32_t i;
 
     cmd->component_id = component_id;
-    cmd->topic_id = topic_id;
+    cmd->umid = umid;
     cmd->opcode = opcode;
     cmd->entry_count = 0;
 
