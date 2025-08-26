@@ -78,11 +78,11 @@ static int recover_xrun(snd_pcm_t *pcm, int err)
 /* configure hw params for mgr->fmt */
 static int set_hw_params(struct audio_mgr *mgr,
              snd_pcm_hw_params_t *params,
-             unsigned int buffer_time_us,
-             unsigned int period_time_us)
+             uint32_t buffer_time_us,
+             uint32_t period_time_us)
 {
     int ret;
-    unsigned int rate = mgr->fmt.sample_rate;
+    uint32_t rate = mgr->fmt.sample_rate;
 
     snd_pcm_hw_params_any(mgr->pcm, params);
 
@@ -113,8 +113,8 @@ static int set_hw_params(struct audio_mgr *mgr,
 
 /* internal init helper used by init and reinit */
 static int internal_open_and_config(struct audio_mgr *mgr,
-                    unsigned int buffer_time_us,
-                    unsigned int period_time_us)
+                    uint32_t buffer_time_us,
+                    uint32_t period_time_us)
 {
     snd_pcm_hw_params_t *params;
     int ret;
@@ -243,10 +243,10 @@ static int mmap_copy_apply_gain(struct audio_mgr *mgr,
 int audio_mgr_init(struct audio_mgr *mgr, \
            const char *device_name, \
            snd_pcm_format_t pcm_format, \
-           unsigned int channels, \
-           unsigned int sample_rate, \
-           unsigned int buffer_time_us, \
-           unsigned int period_time_us)
+           uint32_t channels, \
+           uint32_t sample_rate, \
+           uint32_t buffer_time_us, \
+           uint32_t period_time_us)
 {
     int ret;
 
@@ -294,8 +294,8 @@ int audio_mgr_init(struct audio_mgr *mgr, \
  */
 int audio_mgr_reinit(struct audio_mgr *mgr, \
              snd_pcm_format_t pcm_format, \
-             unsigned int channels, \
-             unsigned int sample_rate)
+             uint32_t channels, \
+             uint32_t sample_rate)
 {
     if (!mgr || !mgr->device_name) return AUDIO_E_INVAL;
 
@@ -372,7 +372,7 @@ int audio_mgr_set_master_gain(struct audio_mgr *mgr, float gain)
     return AUDIO_OK;
 }
 
-int audio_mgr_set_channel_gain(struct audio_mgr *mgr, unsigned int ch, float gain)
+int audio_mgr_set_channel_gain(struct audio_mgr *mgr, uint32_t ch, float gain)
 {
     if (!mgr) return AUDIO_E_INVAL;
     if (ch >= mgr->fmt.channels || ch >= AUDIO_MAX_CHANNELS) return AUDIO_E_INVAL;
@@ -381,7 +381,7 @@ int audio_mgr_set_channel_gain(struct audio_mgr *mgr, unsigned int ch, float gai
     return AUDIO_OK;
 }
 
-int audio_mgr_set_channel_gains(struct audio_mgr *mgr, const float *gains, unsigned int n)
+int audio_mgr_set_channel_gains(struct audio_mgr *mgr, const float *gains, uint32_t n)
 {
     if (!mgr || !gains) return AUDIO_E_INVAL;
     if (n < mgr->fmt.channels) return AUDIO_E_INVAL;

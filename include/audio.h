@@ -37,10 +37,10 @@
 /* audio format description */
 struct audio_format {
     snd_pcm_format_t pcm_format;   /* ALSA format enum */
-    unsigned int sample_rate;      /* sample rate Hz */
-    unsigned int channels;         /* channels count */
-    unsigned int bits_per_sample;  /* bits per sample */
-    unsigned int block_align;      /* bytes per frame (channels * bits/8) */
+    uint32_t sample_rate;      /* sample rate Hz */
+    uint32_t channels;         /* channels count */
+    uint32_t bits_per_sample;  /* bits per sample */
+    uint32_t block_align;      /* bytes per frame (channels * bits/8) */
 };
 
 /* audio manager context */
@@ -103,18 +103,18 @@ snd_pcm_format_t audio_bits_to_sndfmt(unsigned bits);
 int audio_mgr_init(struct audio_mgr *mgr, \
            const char *device_name, \
            snd_pcm_format_t pcm_format, \
-           unsigned int channels, \
-           unsigned int sample_rate, \
-           unsigned int buffer_time_us, \
-           unsigned int period_time_us);
+           uint32_t channels, \
+           uint32_t sample_rate, \
+           uint32_t buffer_time_us, \
+           uint32_t period_time_us);
 
 /* Reinitialize current manager with new format (close + init).
  * Useful when auto_reinit is enabled.
  */
 int audio_mgr_reinit(struct audio_mgr *mgr, \
              snd_pcm_format_t pcm_format, \
-             unsigned int channels, \
-             unsigned int sample_rate);
+             uint32_t channels, \
+             uint32_t sample_rate);
 
 /* Prepare (snd_pcm_prepare) - safe to call when recovering from xruns */
 int audio_mgr_prepare(struct audio_mgr *mgr);
@@ -128,8 +128,8 @@ int audio_mgr_set_skip_format_check(struct audio_mgr *mgr, int enable); /* 0/1 *
 
 /* Gain control (clamped 0.0..1.0). Return AUDIO_OK or error. */
 int audio_mgr_set_master_gain(struct audio_mgr *mgr, float gain);
-int audio_mgr_set_channel_gain(struct audio_mgr *mgr, unsigned int ch, float gain);
-int audio_mgr_set_channel_gains(struct audio_mgr *mgr, const float *gains, unsigned int n);
+int audio_mgr_set_channel_gain(struct audio_mgr *mgr, uint32_t ch, float gain);
+int audio_mgr_set_channel_gains(struct audio_mgr *mgr, const float *gains, uint32_t n);
 
 /* Zero-copy write via ALSA mmap: copy 'frames' frames from src into ALSA ring.
  * src layout = interleaved PCM matching mgr->fmt.
