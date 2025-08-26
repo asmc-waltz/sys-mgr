@@ -18,9 +18,14 @@
 #define LOG_LEVEL_DEBUG   5
 #define LOG_LEVEL_TRACE   6
 
-// Set current log level here
+/* Global default log level */
+#ifndef GLOBAL_LOG_LEVEL
+#define GLOBAL_LOG_LEVEL LOG_LEVEL_TRACE
+#endif
+
+/* Per-file log level override: uses global level if not defined by the file */
 #ifndef LOG_LEVEL
-#define LOG_LEVEL LOG_LEVEL_TRACE
+#define LOG_LEVEL GLOBAL_LOG_LEVEL
 #endif
 
 // Color macros for terminal output (optional)
@@ -121,19 +126,12 @@ static inline const char* _log_timestamp() {
 #endif
 
 #if LOG_LEVEL >= LOG_LEVEL_TRACE
-// #define LOG_TRACE(fmt, ...) \
-//     fprintf(stdout, COLOR_WHITE "[TRACE] [%s] [%s:%d:%s] \n\t" fmt COLOR_RESET "\n", \
-//             _log_timestamp(), __FILE__, __LINE__, __func__, ##__VA_ARGS__)
-
-// #define LOG_TRACE(fmt, ...) \
-//     fprintf(stdout, COLOR_WHITE "[TRACE] [%s] " fmt COLOR_RESET "\n", \
-//             _log_timestamp(), ##__VA_ARGS__)
-
 #define LOG_TRACE(fmt, ...) \
-    fprintf(stdout, COLOR_WHITE "[TRACE] " fmt COLOR_RESET "\n", ##__VA_ARGS__)
-
+    fprintf(stdout, COLOR_WHITE "[TRACE] [%s] [%s:%d:%s] \n\t" fmt COLOR_RESET "\n", \
+            _log_timestamp(), __FILE__, __LINE__, __func__, ##__VA_ARGS__) 
 #else
 #define LOG_TRACE(fmt, ...)
 #endif
 
 #endif /* G_LOG_H */
+
