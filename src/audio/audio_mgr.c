@@ -58,19 +58,19 @@ static float clamp01(float v)
 /* helper: recover from xrun or suspend */
 static int recover_xrun(snd_pcm_t *pcm, int err)
 {
-    int rc;
+    int ret;
 
     if (err == -EPIPE) {
-        rc = snd_pcm_prepare(pcm);
-        return rc < 0 ? rc : 0;
+        ret = snd_pcm_prepare(pcm);
+        return ret < 0 ? ret : 0;
     }
     if (err == -ESTRPIPE) {
         /* wait for resume */
-        while ((rc = snd_pcm_resume(pcm)) == -EAGAIN)
+        while ((ret = snd_pcm_resume(pcm)) == -EAGAIN)
             usleep(1000);
-        if (rc < 0)
-            rc = snd_pcm_prepare(pcm);
-        return rc < 0 ? rc : 0;
+        if (ret < 0)
+            ret = snd_pcm_prepare(pcm);
+        return ret < 0 ? ret : 0;
     }
     return err;
 }
@@ -81,31 +81,31 @@ static int set_hw_params(struct audio_mgr *mgr,
              unsigned int buffer_time_us,
              unsigned int period_time_us)
 {
-    int rc;
+    int ret;
     unsigned int rate = mgr->fmt.sample_rate;
 
     snd_pcm_hw_params_any(mgr->pcm, params);
 
-    rc = snd_pcm_hw_params_set_access(mgr->pcm, params,
+    ret = snd_pcm_hw_params_set_access(mgr->pcm, params,
                      SND_PCM_ACCESS_MMAP_INTERLEAVED);
-    if (rc < 0) return rc;
+    if (ret < 0) return ret;
 
-    rc = snd_pcm_hw_params_set_format(mgr->pcm, params, mgr->fmt.pcm_format);
-    if (rc < 0) return rc;
+    ret = snd_pcm_hw_params_set_format(mgr->pcm, params, mgr->fmt.pcm_format);
+    if (ret < 0) return ret;
 
-    rc = snd_pcm_hw_params_set_channels(mgr->pcm, params, mgr->fmt.channels);
-    if (rc < 0) return rc;
+    ret = snd_pcm_hw_params_set_channels(mgr->pcm, params, mgr->fmt.channels);
+    if (ret < 0) return ret;
 
-    rc = snd_pcm_hw_params_set_rate_near(mgr->pcm, params, &rate, 0);
-    if (rc < 0) return rc;
+    ret = snd_pcm_hw_params_set_rate_near(mgr->pcm, params, &rate, 0);
+    if (ret < 0) return ret;
 
     if (buffer_time_us) {
-        rc = snd_pcm_hw_params_set_buffer_time_near(mgr->pcm, params, &buffer_time_us, 0);
-        if (rc < 0) return rc;
+        ret = snd_pcm_hw_params_set_buffer_time_near(mgr->pcm, params, &buffer_time_us, 0);
+        if (ret < 0) return ret;
     }
     if (period_time_us) {
-        rc = snd_pcm_hw_params_set_period_time_near(mgr->pcm, params, &period_time_us, 0);
-        if (rc < 0) return rc;
+        ret = snd_pcm_hw_params_set_period_time_near(mgr->pcm, params, &period_time_us, 0);
+        if (ret < 0) return ret;
     }
 
     return snd_pcm_hw_params(mgr->pcm, params);
@@ -117,29 +117,29 @@ static int internal_open_and_config(struct audio_mgr *mgr,
                     unsigned int period_time_us)
 {
     snd_pcm_hw_params_t *params;
-    int rc;
+    int ret;
 
     if (!mgr || !mgr->device_name) return AUDIO_E_INVAL;
 
-    rc = snd_pcm_open(&mgr->pcm, mgr->device_name, SND_PCM_STREAM_PLAYBACK, 0);
-    if (rc < 0) {
-        LOG_ERROR("snd_pcm_open(%s): %s", mgr->device_name, snd_strerror(rc));
+    ret = snd_pcm_open(&mgr->pcm, mgr->device_name, SND_PCM_STREAM_PLAYBACK, 0);
+    if (ret < 0) {
+        LOG_ERROR("snd_pcm_open(%s): %s", mgr->device_name, snd_strerror(ret));
         return AUDIO_ERR;
     }
 
     snd_pcm_hw_params_malloc(&params);
-    rc = set_hw_params(mgr, params, buffer_time_us, period_time_us);
+    ret = set_hw_params(mgr, params, buffer_time_us, period_time_us);
     snd_pcm_hw_params_free(params);
-    if (rc < 0) {
-        LOG_ERROR("snd_pcm_hw_params: %s", snd_strerror(rc));
+    if (ret < 0) {
+        LOG_ERROR("snd_pcm_hw_params: %s", snd_strerror(ret));
         snd_pcm_close(mgr->pcm);
         mgr->pcm = NULL;
         return AUDIO_ERR;
     }
 
-    rc = snd_pcm_prepare(mgr->pcm);
-    if (rc < 0) {
-        LOG_ERROR("snd_pcm_prepare: %s", snd_strerror(rc));
+    ret = snd_pcm_prepare(mgr->pcm);
+    if (ret < 0) {
+        LOG_ERROR("snd_pcm_prepare: %s", snd_strerror(ret));
         snd_pcm_close(mgr->pcm);
         mgr->pcm = NULL;
         return AUDIO_ERR;
@@ -153,12 +153,12 @@ static int internal_open_and_config(struct audio_mgr *mgr,
 
 /* copy + apply per-channel + master gain into ALSA mmap ring */
 static int mmap_copy_apply_gain(struct audio_mgr *mgr,
-                const void *src_void,
+                const void *sret_void,
                 snd_pcm_uframes_t frames,
                 const snd_pcm_channel_area_t *areas,
                 snd_pcm_uframes_t offset)
 {
-    const uint8_t *src = (const uint8_t *)src_void;
+    const uint8_t *sret = (const uint8_t *)sret_void;
     unsigned ch = mgr->fmt.channels;
     unsigned bps = mgr->fmt.bits_per_sample;
     uint8_t *dst;
@@ -172,18 +172,18 @@ static int mmap_copy_apply_gain(struct audio_mgr *mgr,
         for (i = 0; i < frames; ++i) {
             for (unsigned c = 0; c < ch; ++c) {
                 float g = mgr->master_gain * mgr->ch_gain[c];
-                int s = (int)src[c] - 128;
+                int s = (int)sret[c] - 128;
                 int out = (int)(s * g) + 128;
                 if (out < 0) out = 0; if (out > 255) out = 255;
                 dst[c] = (uint8_t)out;
             }
-            src += ch; dst += ch;
+            sret += ch; dst += ch;
         }
         return AUDIO_OK;
     }
 
     if (bps == 16) {
-        const int16_t *si = (const int16_t *)src;
+        const int16_t *si = (const int16_t *)sret;
         int16_t *di = (int16_t *)dst;
         for (i = 0; i < frames; ++i) {
             for (unsigned c = 0; c < ch; ++c) {
@@ -201,7 +201,7 @@ static int mmap_copy_apply_gain(struct audio_mgr *mgr,
         /* packed 3 bytes little endian */
         for (i = 0; i < frames; ++i) {
             for (unsigned c = 0; c < ch; ++c) {
-                const uint8_t *s3 = src + c * 3;
+                const uint8_t *s3 = sret + c * 3;
                 int32_t sv = s3[0] | (s3[1] << 8) | (s3[2] << 16);
                 if (sv & 0x00800000) sv |= 0xFF000000; /* sign extend */
                 float g = mgr->master_gain * mgr->ch_gain[c];
@@ -213,13 +213,13 @@ static int mmap_copy_apply_gain(struct audio_mgr *mgr,
                 d3[1] = (uint8_t)((v >> 8) & 0xFF);
                 d3[2] = (uint8_t)((v >> 16) & 0xFF);
             }
-            src += ch * 3; dst += ch * 3;
+            sret += ch * 3; dst += ch * 3;
         }
         return AUDIO_OK;
     }
 
     if (bps == 32) {
-        const int32_t *si = (const int32_t *)src;
+        const int32_t *si = (const int32_t *)sret;
         int32_t *di = (int32_t *)dst;
         for (i = 0; i < frames; ++i) {
             for (unsigned c = 0; c < ch; ++c) {
@@ -248,7 +248,7 @@ int audio_mgr_init(struct audio_mgr *mgr, \
            unsigned int buffer_time_us, \
            unsigned int period_time_us)
 {
-    int rc;
+    int ret;
 
     if (!mgr || !device_name) return AUDIO_E_INVAL;
 
@@ -272,11 +272,11 @@ int audio_mgr_init(struct audio_mgr *mgr, \
     mgr->auto_reinit = 1;        /* default: allow auto reinit */
     mgr->skip_format_check = 0;  /* default: check formats */
 
-    rc = internal_open_and_config(mgr, buffer_time_us, period_time_us);
-    if (rc < 0) {
+    ret = internal_open_and_config(mgr, buffer_time_us, period_time_us);
+    if (ret < 0) {
         free(mgr->device_name);
         mgr->device_name = NULL;
-        return rc;
+        return ret;
     }
 
     LOG_INFO("audio_mgr: opened device=%s format=%u ch=%u sr=%u bps=%u",
@@ -321,15 +321,15 @@ int audio_mgr_reinit(struct audio_mgr *mgr, \
 int audio_mgr_prepare(struct audio_mgr *mgr)
 {
     if (!mgr || !mgr->pcm) return AUDIO_E_INVAL;
-    int rc = snd_pcm_prepare(mgr->pcm);
-    if (rc < 0) {
-        LOG_ERROR("snd_pcm_prepare: %s", snd_strerror(rc));
+    int ret = snd_pcm_prepare(mgr->pcm);
+    if (ret < 0) {
+        LOG_ERROR("snd_pcm_prepare: %s", snd_strerror(ret));
         return AUDIO_ERR;
     }
     return AUDIO_OK;
 }
 
-/* release resources */
+/* release resouretes */
 void audio_mgr_release(struct audio_mgr *mgr)
 {
     if (!mgr) return;
@@ -391,41 +391,41 @@ int audio_mgr_set_channel_gains(struct audio_mgr *mgr, const float *gains, unsig
     return AUDIO_OK;
 }
 
-/* Write 'frames' frames from src into ALSA ring using mmap interface.
- * src must be interleaved PCM matching mgr->fmt.
+/* Write 'frames' frames from sret into ALSA ring using mmap interface.
+ * sret must be interleaved PCM matching mgr->fmt.
  */
-int audio_mgr_write_mmap(struct audio_mgr *mgr, const void *src, size_t frames)
+int audio_mgr_write_mmap(struct audio_mgr *mgr, const void *sret, size_t frames)
 {
     const snd_pcm_channel_area_t *areas;
     snd_pcm_uframes_t offset, avail;
-    snd_pcm_sframes_t rc;
+    snd_pcm_sframes_t ret;
     size_t left;
 
-    if (!mgr || !mgr->pcm || !src) return AUDIO_E_INVAL;
+    if (!mgr || !mgr->pcm || !sret) return AUDIO_E_INVAL;
 
     left = frames;
 
     while (left > 0) {
-        rc = snd_pcm_avail_update(mgr->pcm);
-        if (rc < 0) {
-            rc = recover_xrun(mgr->pcm, rc);
-            if (rc < 0) {
-                LOG_ERROR("snd_pcm_avail_update error: %s", snd_strerror((int)rc));
+        ret = snd_pcm_avail_update(mgr->pcm);
+        if (ret < 0) {
+            ret = recover_xrun(mgr->pcm, ret);
+            if (ret < 0) {
+                LOG_ERROR("snd_pcm_avail_update error: %s", snd_strerror((int)ret));
                 return AUDIO_ERR;
             }
             continue;
         }
 
-        if (rc == 0) { /* nothing available: wait a bit */
+        if (ret == 0) { /* nothing available: wait a bit */
             snd_pcm_wait(mgr->pcm, 1000);
             continue;
         }
 
-        rc = snd_pcm_mmap_begin(mgr->pcm, &areas, &offset, &avail);
-        if (rc < 0) {
-            rc = recover_xrun(mgr->pcm, rc);
-            if (rc < 0) {
-                LOG_ERROR("snd_pcm_mmap_begin error: %s", snd_strerror((int)rc));
+        ret = snd_pcm_mmap_begin(mgr->pcm, &areas, &offset, &avail);
+        if (ret < 0) {
+            ret = recover_xrun(mgr->pcm, ret);
+            if (ret < 0) {
+                LOG_ERROR("snd_pcm_mmap_begin error: %s", snd_strerror((int)ret));
                 return AUDIO_ERR;
             }
             continue;
@@ -434,24 +434,24 @@ int audio_mgr_write_mmap(struct audio_mgr *mgr, const void *src, size_t frames)
         if ((snd_pcm_uframes_t)left < avail) avail = (snd_pcm_uframes_t)left;
 
         /* apply gain while copying into ALSA buffer */
-        int mrc = mmap_copy_apply_gain(mgr, src, avail, areas, offset);
-        if (mrc < 0) {
+        int mret = mmap_copy_apply_gain(mgr, sret, avail, areas, offset);
+        if (mret < 0) {
             (void)snd_pcm_mmap_commit(mgr->pcm, offset, 0);
             LOG_ERROR("mmap copy apply gain failed");
-            return mrc;
+            return mret;
         }
 
-        rc = snd_pcm_mmap_commit(mgr->pcm, offset, avail);
-        if (rc < 0) {
-            rc = recover_xrun(mgr->pcm, rc);
-            if (rc < 0) {
-                LOG_ERROR("snd_pcm_mmap_commit error: %s", snd_strerror((int)rc));
+        ret = snd_pcm_mmap_commit(mgr->pcm, offset, avail);
+        if (ret < 0) {
+            ret = recover_xrun(mgr->pcm, ret);
+            if (ret < 0) {
+                LOG_ERROR("snd_pcm_mmap_commit error: %s", snd_strerror((int)ret));
                 return AUDIO_ERR;
             }
             continue;
         }
 
-        src = (const uint8_t *)src + avail * mgr->frame_size;
+        sret = (const uint8_t *)sret + avail * mgr->frame_size;
         left -= avail;
     }
 

@@ -3,8 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <dbus_comm.h>
-#include <task.h>
+#include <comm/dbus_comm.h>
+#include <sched/task.h>
 
 #include <log.h>
 

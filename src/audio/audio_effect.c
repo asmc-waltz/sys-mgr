@@ -128,8 +128,8 @@ static int wav_parse_mmap(const uint8_t *base, size_t size, struct wav_map *wm)
         if (payload + chunk_size > end) return AUDIO_E_INVAL;
 
         if (memcmp(chunk_id, "fmt ", 4) == 0) {
-            int rc = parse_fmt_chunk(payload, chunk_size, &wm->fmt);
-            if (rc < 0) return rc;
+            int ret = parse_fmt_chunk(payload, chunk_size, &wm->fmt);
+            if (ret < 0) return ret;
             have_fmt = 1;
         } else if (memcmp(chunk_id, "data", 4) == 0) {
             wm->data = payload;
@@ -165,7 +165,7 @@ int wav_map_open(const char *path, struct wav_map *out)
     int fd;
     struct stat st;
     void *base;
-    int rc;
+    int ret;
 
     if (!path || !out) return AUDIO_E_INVAL;
     memset(out, 0, sizeof(*out));
@@ -199,13 +199,13 @@ int wav_map_open(const char *path, struct wav_map *out)
     out->base = base;
     out->size = (size_t)st.st_size;
 
-    rc = wav_parse_mmap((const uint8_t *)base, out->size, out);
-    if (rc < 0) {
+    ret = wav_parse_mmap((const uint8_t *)base, out->size, out);
+    if (ret < 0) {
         LOG_ERROR("wav parse failed for '%s'", path);
         munmap(base, out->size);
         close(fd);
         memset(out, 0, sizeof(*out));
-        return rc;
+        return ret;
     }
 
     LOG_DEBUG("wav_map_open: '%s' ch=%u sr=%u bps=%u data=%zu",
@@ -227,7 +227,7 @@ void wav_map_close(struct wav_map *wm)
 /* play from mapping (handles format mismatch options) */
 int audio_play_wav_map(struct audio_mgr *mgr, const struct wav_map *wm)
 {
-    int rc;
+    int ret;
 
     if (!mgr || !wm) return AUDIO_E_INVAL;
 
@@ -242,10 +242,10 @@ int audio_play_wav_map(struct audio_mgr *mgr, const struct wav_map *wm)
             /* mismatch */
             if (mgr->auto_reinit) {
                 LOG_INFO("format mismatch detected; auto_reinit enabled -> reinit device");
-                rc = audio_mgr_reinit(mgr, wm->fmt.pcm_format, wm->fmt.channels, wm->fmt.sample_rate);
-                if (rc < 0) {
+                ret = audio_mgr_reinit(mgr, wm->fmt.pcm_format, wm->fmt.channels, wm->fmt.sample_rate);
+                if (ret < 0) {
                     LOG_ERROR("audio_mgr_reinit failed");
-                    return rc;
+                    return ret;
                 }
             } else {
                 LOG_ERROR("format mismatch (file vs device) and auto_reinit disabled");
@@ -272,10 +272,10 @@ int audio_play_wav_map(struct audio_mgr *mgr, const struct wav_map *wm)
         LOG_DEBUG("pcm state=%s - loaded %d - total %d", \
                   snd_pcm_state_name(snd_pcm_state(mgr->pcm)), done, total_frames);
 
-        rc = audio_mgr_write_mmap(mgr, wm->data + done * frame_size, to_do);
-        if (rc < 0) {
+        ret = audio_mgr_write_mmap(mgr, wm->data + done * frame_size, to_do);
+        if (ret < 0) {
             LOG_ERROR("audio_mgr_write_mmap failed");
-            return rc;
+            return ret;
         }
         // TODO: reverity
         snd_pcm_start(mgr->pcm);
@@ -289,12 +289,12 @@ int audio_play_wav_map(struct audio_mgr *mgr, const struct wav_map *wm)
 int audio_play_wav_file(struct audio_mgr *mgr, const char *path)
 {
     struct wav_map wm;
-    int rc;
+    int ret;
 
-    rc = wav_map_open(path, &wm);
-    if (rc < 0) return rc;
+    ret = wav_map_open(path, &wm);
+    if (ret < 0) return ret;
 
-    rc = audio_play_wav_map(mgr, &wm);
+    ret = audio_play_wav_map(mgr, &wm);
     wav_map_close(&wm);
-    return rc;
+    return ret;
 }

@@ -114,16 +114,16 @@ static int read_sysfs_float_file(const char *path, float *out)
 {
     FILE *f;
     double tmp;
-    int rc = -1;
+    int ret = -1;
     if (!path || !out) return -1;
     f = fopen(path, "r");
     if (!f) return -1;
     if (fscanf(f, "%lf", &tmp) == 1) {
         *out = (float)tmp;
-        rc = 0;
-    } else rc = -1;
+        ret = 0;
+    } else ret = -1;
     fclose(f);
-    return rc;
+    return ret;
 }
 
 static int read_sysfs_name(const char *name, float *out)
@@ -219,23 +219,23 @@ static int read_raw_scaled_no_unit_convert(float *ax, float *ay, float *az,
     float v;
     float a_raw[3] = {0.0f,0.0f,0.0f};
     float g_raw[3] = {0.0f,0.0f,0.0f};
-    int rc;
+    int ret;
 
     /* accel */
-    rc = read_sysfs_name("in_accel_x_raw", &v);
-    a_raw[0] = (rc==0) ? v * scales.accel_scale : 0.0f;
-    rc = read_sysfs_name("in_accel_y_raw", &v);
-    a_raw[1] = (rc==0) ? v * scales.accel_scale : 0.0f;
-    rc = read_sysfs_name("in_accel_z_raw", &v);
-    a_raw[2] = (rc==0) ? v * scales.accel_scale : 0.0f;
+    ret = read_sysfs_name("in_accel_x_raw", &v);
+    a_raw[0] = (ret==0) ? v * scales.accel_scale : 0.0f;
+    ret = read_sysfs_name("in_accel_y_raw", &v);
+    a_raw[1] = (ret==0) ? v * scales.accel_scale : 0.0f;
+    ret = read_sysfs_name("in_accel_z_raw", &v);
+    a_raw[2] = (ret==0) ? v * scales.accel_scale : 0.0f;
 
     /* gyro */
-    rc = read_sysfs_name("in_anglvel_x_raw", &v);
-    g_raw[0] = (rc==0) ? v * scales.gyro_scale : 0.0f;
-    rc = read_sysfs_name("in_anglvel_y_raw", &v);
-    g_raw[1] = (rc==0) ? v * scales.gyro_scale : 0.0f;
-    rc = read_sysfs_name("in_anglvel_z_raw", &v);
-    g_raw[2] = (rc==0) ? v * scales.gyro_scale : 0.0f;
+    ret = read_sysfs_name("in_anglvel_x_raw", &v);
+    g_raw[0] = (ret==0) ? v * scales.gyro_scale : 0.0f;
+    ret = read_sysfs_name("in_anglvel_y_raw", &v);
+    g_raw[1] = (ret==0) ? v * scales.gyro_scale : 0.0f;
+    ret = read_sysfs_name("in_anglvel_z_raw", &v);
+    g_raw[2] = (ret==0) ? v * scales.gyro_scale : 0.0f;
 
     /* apply mount matrices */
     float a_rot[3], g_rot[3];
@@ -281,7 +281,7 @@ int imu_kalman_read_raw(float *ax, float *ay, float *az,
 /* ---------- calibration implementation ---------- */
 int imu_kalman_calibrate(void)
 {
-    int i, rc;
+    int i, ret;
     double ax_sum = 0.0, ay_sum = 0.0, az_sum = 0.0;
     double gx_sum = 0.0, gy_sum = 0.0, gz_sum = 0.0;
     double mag_sum = 0.0;
@@ -296,8 +296,8 @@ int imu_kalman_calibrate(void)
 
     /* collect samples using raw scaled values (not yet converted to final units) */
     for (i = 0; i < CALIB_SAMPLES; i++) {
-        rc = read_raw_scaled_no_unit_convert(&axs, &ays, &azs, &gxs, &gys, &gzs);
-        if (rc != 0) {
+        ret = read_raw_scaled_no_unit_convert(&axs, &ays, &azs, &gxs, &gys, &gzs);
+        if (ret != 0) {
             LOG_ERROR("calibrate: read_raw_scaled_no_unit_convert failed");
             return -1;
         }
@@ -521,7 +521,7 @@ static int imu_fn_handler()
 
 int imu_kalman_init(const char *path, int hz, float q_angle, float q_bias, float r_measure)
 {
-    int rc;
+    int ret;
 
     if (!path) path = DEFAULT_IIO_BASE;
 
@@ -556,8 +556,8 @@ int imu_kalman_init(const char *path, int hz, float q_angle, float q_bias, float
     load_mount_matrix("in_anglvel_mount_matrix", gyro_mount);
 
     /* quick check base path accessibility */
-    rc = access(iio_base, R_OK);
-    if (rc != 0) {
+    ret = access(iio_base, R_OK);
+    if (ret != 0) {
         LOG_ERROR("iio base %s not accessible (%s)", iio_base, strerror(errno));
         return -1;
     }
@@ -566,8 +566,8 @@ int imu_kalman_init(const char *path, int hz, float q_angle, float q_bias, float
          iio_base, sample_hz, k_roll.q_angle, k_roll.q_bias, k_roll.r_measure);
 
     /* initial calibration (blocking) */
-    rc = imu_kalman_calibrate();
-    if (rc != 0) {
+    ret = imu_kalman_calibrate();
+    if (ret != 0) {
         LOG_WARN("initial calibration failed");
         /* continue, but offsets may be zero */
     }
@@ -576,7 +576,7 @@ int imu_kalman_init(const char *path, int hz, float q_angle, float q_bias, float
 }
 int32_t imu_fn_thread_handler()
 {
-    int rc;
+    int ret;
 
     if (imu_running) {
         LOG_WARN("imu already running");
@@ -584,16 +584,16 @@ int32_t imu_fn_thread_handler()
     }
 
     imu_running = 1;
-    rc = imu_fn_handler();
-    if (rc != EXIT_SUCCESS) {
-        LOG_ERROR("IMU background task has failed (%d)", rc);
+    ret = imu_fn_handler();
+    if (ret != EXIT_SUCCESS) {
+        LOG_ERROR("IMU background task has failed (%d)", ret);
         imu_running = 0;
-        return rc;
+        return ret;
     } else {
         LOG_INFO("IMU handler is exited");
     }
 
-    return rc;
+    return ret;
 }
 
 void imu_fn_thread_stop(void)

@@ -47,27 +47,27 @@
  **********************/
 int32_t backlight_setup()
 {
-    int32_t rc;
+    int32_t ret;
     char str[10];
 
     if (gf_fs_file_exists(FS_BRIGHTNESS_POWER)) {
         sprintf(str, "%d", 0);
-        rc = gf_fs_write_file(FS_BRIGHTNESS_POWER, str, sizeof(str));
+        ret = gf_fs_write_file(FS_BRIGHTNESS_POWER, str, sizeof(str));
     }
 
-    return rc;
+    return ret;
 }
 
-int32_t set_brightness(uint8_t bl_percent)
+int32_t set_brightness(uint8_t bl_peretent)
 {
-    char str_percent[10];
+    char str_peretent[10];
 
     // TODO: workaround when backlight cannot be set to zero from kernel
-    if (bl_percent == 0) {
-        bl_percent = 1;
+    if (bl_peretent == 0) {
+        bl_peretent = 1;
     }
 
-    sprintf(str_percent, "%d", bl_percent);
-    gf_fs_write_file(FS_BRIGHTNESS, str_percent, sizeof(str_percent));
+    sprintf(str_peretent, "%d", bl_peretent);
+    gf_fs_write_file(FS_BRIGHTNESS, str_peretent, sizeof(str_peretent));
 }
 

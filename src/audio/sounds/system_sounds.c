@@ -47,22 +47,22 @@ int snd_sys_init()
     const char *dev = "default";
     const char *sys_snd = "/usr/share/sounds/sound-icons/prompt.wav";
     struct wav_map first;
-    int rc;
+    int ret;
 
     /* 1) mmap+parse first file to obtain its format */
-    rc = wav_map_open(sys_snd, &first);
-    if (rc < 0) {
+    ret = wav_map_open(sys_snd, &first);
+    if (ret < 0) {
         fprintf(stderr, "Failed to parse first WAV\n");
         return 1;
     }
 
     /* 2) initialize ALSA to match first file */
-    rc = audio_mgr_init(&mgr, dev,
+    ret = audio_mgr_init(&mgr, dev,
                 first.fmt.pcm_format,
                 first.fmt.channels,
                 first.fmt.sample_rate,
                 0, 0);
-    if (rc < 0) {
+    if (ret < 0) {
         fprintf(stderr, "audio_mgr_init failed\n");
         wav_map_close(&first);
         return 1;
@@ -82,15 +82,15 @@ int snd_sys_init()
     if (mgr.fmt.channels >= 2) audio_mgr_set_channel_gain(&mgr, 1, 1.0f);
 
     /* 5) play first file (we already have it mapped) */
-    rc = audio_play_wav_map(&mgr, &first);
+    ret = audio_play_wav_map(&mgr, &first);
     wav_map_close(&first);
-    if (rc < 0) {
+    if (ret < 0) {
         fprintf(stderr, "play 1 failed\n");
         audio_mgr_release(&mgr);
         return 1;
     }
 
-    return rc < 0 ? 1 : 0;
+    return ret < 0 ? 1 : 0;
 }
 
 void snd_sys_release()
@@ -100,7 +100,7 @@ void snd_sys_release()
 
 int audio_play_sound(const char *snd_file)
 {
-    int rc;
+    int ret;
 
     /*
      * play sound file by convenience function (open->play->close).
@@ -109,10 +109,10 @@ int audio_play_sound(const char *snd_file)
      * - if skip_format_check == 1: format check is skipped (assume match)
      * - otherwise: play fails with error
      */
-    rc = audio_play_wav_file(&mgr, snd_file);
-    if (rc < 0) {
-        LOG_ERROR("Sound play failed: ret %d", rc);
+    ret = audio_play_wav_file(&mgr, snd_file);
+    if (ret < 0) {
+        LOG_ERROR("Sound play failed: ret %d", ret);
     }
 
-    return rc < 0 ? 1 : 0;
+    return ret < 0 ? 1 : 0;
 }
