@@ -201,21 +201,22 @@ static int32_t dispatch_cmd_from_message(DBusMessage *msg)
         return -EINVAL;
     }
 
-    LOG_INFO("Received frame from component: %s", cmd->component_id);
-    LOG_INFO("Message ID: %d, Opcode: %d", cmd->umid, cmd->opcode);
+    LOG_DEBUG("Received frame from component: %s", cmd->component_id);
+    LOG_DEBUG("Message ID: %d, Opcode: %d", cmd->umid, cmd->opcode);
 
     for (i = 0; i < cmd->entry_count; ++i) {
         payload_t *entry = &cmd->entries[i];
-        LOG_INFO("Key: %s, Type: %c", entry->key, entry->data_type);
+        LOG_TRACE("Entry (%d): Key [%s] - type [%c] - length [%d]", i, \
+                 entry->key, entry->data_type, entry->data_length);
         switch (entry->data_type) {
         case DBUS_TYPE_STRING:
-            LOG_INFO("Value (string): %s", entry->value.str);
+            LOG_TRACE("Entry (%d): Value (string): %s", i, entry->value.str);
             break;
         case DBUS_TYPE_INT32:
-            LOG_INFO("Value (int): %d", entry->value.i32);
+            LOG_TRACE("Entry (%d): Value (int): %d", i, entry->value.i32);
             break;
         default:
-            LOG_WARN("Unsupported type: %c", entry->data_type);
+            LOG_TRACE("Entry (%d): Unsupported type: %c", i, entry->data_type);
             break;
         }
     }
