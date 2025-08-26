@@ -8,7 +8,7 @@
  *********************/
 #include <stdint.h>
 
-#include <sys_comm.h>
+#include <comm/sys_comm.h>
 
 #include <log.h>
 

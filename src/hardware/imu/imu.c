@@ -18,7 +18,7 @@
 #include <signal.h>
 
 #include <log.h>
-#include <imu.h>
+#include <devices/imu.h>
 #include "kalman.h"
 
 /*********************
