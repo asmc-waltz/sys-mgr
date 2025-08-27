@@ -13,6 +13,7 @@
 #include <log.h>
 
 #include <stdint.h>
+#include <string.h>
 #include <errno.h>
 
 #include <comm/f_comm.h>
