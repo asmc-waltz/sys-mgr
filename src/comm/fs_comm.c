@@ -20,6 +20,7 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <dirent.h>
 
 #include <comm/f_comm.h>
 
@@ -100,54 +101,31 @@ int32_t gf_fs_append_file(const char *path, const char *data, size_t len)
     return __sf_fs_write_internal(path, data, len, 1);
 }
 
-char *gf_fs_read_file(const char *path, size_t *out_len)
+int gf_fs_read_file(const char *path, char *buf, size_t buf_len, \
+                    size_t *out_len)
 {
-    int32_t fd, ret;
-    char *buf;
-    off_t size;
+    int fd, ret;
+    ssize_t size;
 
-    if (!path || !out_len) {
-        LOG_ERROR("invalid argument");
-        return NULL;
-    }
+    if (!path || !buf || buf_len == 0 || !out_len)
+        return -EINVAL;
 
     fd = open(path, O_RDONLY);
-    if (fd < 0) {
-        LOG_ERROR("open failed: %s", strerror(errno));
-        return NULL;
-    }
+    if (fd < 0)
+        return -errno;
 
-    size = lseek(fd, 0, SEEK_END);
+    size = read(fd, buf, buf_len - 1);
     if (size < 0) {
-        LOG_ERROR("lseek failed: %s", strerror(errno));
+        ret = -errno;
         close(fd);
-        return NULL;
-    }
-    lseek(fd, 0, SEEK_SET);
-
-    buf = malloc(size + 1);
-    if (!buf) {
-        LOG_ERROR("malloc failed");
-        close(fd);
-        return NULL;
-    }
-
-    ret = read(fd, buf, size);
-    if (ret < 0) {
-        LOG_ERROR("read failed: %s", strerror(errno));
-        free(buf);
-        close(fd);
-        return NULL;
+        return ret;
     }
 
     buf[size] = '\0';
     *out_len = size;
 
-    LOG_INFO("read from %s, len=%lld", path, (long long)size);
-    LOG_DEBUG("content:\n%.*s", (int)size, buf);
-
     close(fd);
-    return buf;
+    return 0;
 }
 
 int32_t gf_fs_file_exists(const char *path)
@@ -167,3 +145,52 @@ int32_t gf_fs_file_exists(const char *path)
     LOG_DEBUG("file not found: %s", path);
     return 0;
 }
+
+int32_t find_device_path_by_name(const char *basepath, const char *fid, \
+                                 const char *id_str, char *result_path, \
+                                 size_t result_max_len)
+{
+    DIR *dir;
+    struct dirent *entry;
+    char name_path[256];
+    char name_buf[128];
+    size_t read_len;
+    int ret = -ENOENT;
+
+    if (!id_str || !result_path || result_max_len == 0)
+        return -EINVAL;
+
+    dir = opendir(basepath);
+    if (!dir)
+        return -errno;
+
+    while ((entry = readdir(dir)) != NULL) {
+        /*
+         * Only support IIO dev
+         * TODO: container for each device type
+         */
+        if (strncmp(entry->d_name, "iio:device", 10) != 0)
+            continue;
+
+        snprintf(name_path, sizeof(name_path), "%s/%s/%s", \
+                 basepath, entry->d_name, fid);
+
+        ret = gf_fs_read_file(name_path, name_buf, sizeof(name_buf), \
+                              &read_len);
+        if (ret < 0)
+            continue;
+
+        name_buf[strcspn(name_buf, "\n")] = '\0';
+
+        if (strcmp(name_buf, id_str) == 0) {
+            snprintf(result_path, result_max_len, "%s/%s", \
+                     basepath, entry->d_name);
+            ret = 0;
+            break;
+        }
+    }
+
+    closedir(dir);
+    return ret;
+}
+

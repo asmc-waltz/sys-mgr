@@ -40,9 +40,13 @@ int32_t cleanup_event_file(void);
 // fs_comm
 int32_t gf_fs_write_file(const char *path, const char *data, size_t len);
 int32_t gf_fs_append_file(const char *path, const char *data, size_t len);
-char *gf_fs_read_file(const char *path, size_t *out_len);
+int gf_fs_read_file(const char *path, char *buf, size_t buf_len, \
+                    size_t *out_len);
 int32_t gf_fs_file_exists(const char *path);
 
+int32_t find_device_path_by_name(const char *basepath, const char *fid, \
+                                 const char *id_str, char *result_path, \
+                                 size_t result_max_len);
 // proc_comm
 int32_t exec_cmd_with_interact(char *cmd, char *input);
 
