@@ -95,14 +95,16 @@ void delete_local_cmd(local_cmd_t *cmd)
     free(cmd);
 }
 
-void remote_cmd_init(remote_cmd_t *cmd, const char *component_id, \
-                     int32_t umid, int32_t opcode)
+void remote_cmd_init(remote_cmd_t *cmd, const char *component_id, int32_t umid, \
+                     int32_t opcode, uint8_t flow, uint8_t duration)
 {
     int32_t i;
 
     cmd->component_id = component_id;
     cmd->umid = umid;
     cmd->opcode = opcode;
+    cmd->flow = flow;
+    cmd->duration = duration;
     cmd->entry_count = 0;
 
     for (i = 0; i < MAX_ENTRIES; i++) {

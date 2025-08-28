@@ -34,18 +34,6 @@
  */
 
 typedef enum {
-    COMP_NONE = 0,
-    COMP_SYS_MGR,
-    COMP_TERM_UI,
-} component_id_t;
-
-typedef enum {
-    TPC_NONE = 0,
-    TPC_HW,
-    TPC_NET,
-} umid_t;
-
-typedef enum {
     OP_NONE = 0,
     /* Common API */
     OP_PING,
@@ -98,6 +86,8 @@ typedef struct {
     const char *component_id;    // Identifier of the sender
     uint32_t umid;            // Topic ID
     uint32_t opcode;              // Operation code
+    uint8_t flow;
+    uint8_t duration;
     uint32_t entry_count;         // Number of entries in the payload
     payload_t entries[MAX_ENTRIES]; // Payload entries
 } remote_cmd_t;
@@ -127,8 +117,8 @@ void delete_remote_cmd(remote_cmd_t *cmd);
 local_cmd_t *create_local_cmd();
 void delete_local_cmd(local_cmd_t *cmd);
 
-void remote_cmd_init(remote_cmd_t *cmd, const char *component_id, \
-                     int32_t umid, int32_t opcode);
+void remote_cmd_init(remote_cmd_t *cmd, const char *component_id, int32_t umid, \
+                     int32_t opcode, uint8_t flow, uint8_t duration);
 int32_t remote_cmd_add_string(remote_cmd_t *cmd, const char *key, \
               const char *value);
 int32_t remote_cmd_add_int(remote_cmd_t *cmd, const char *key, int32_t value);
