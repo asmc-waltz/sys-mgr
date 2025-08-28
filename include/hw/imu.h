@@ -67,9 +67,6 @@ void imu_kalman_reset_yaw(float yaw_deg);
 /* Snapshot latest fused angles (thread-safe) */
 struct imu_angles imu_get_angles(void);
 
-/* Toggle detailed debug logs */
-void imu_kalman_set_debug(int32_t on);
-
 /* Runtime tuning (pass >0 to change parameter) */
 void imu_kalman_set_tuning(float q_angle, float q_bias, float r_measure);
 

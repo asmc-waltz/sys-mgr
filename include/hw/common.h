@@ -13,6 +13,7 @@
  *      DEFINES
  *********************/
 #define ALS_SENSOR_NAME                 "opt3001"
+#define IMU_SENSOR_NAME                 "mpu6500"
 
 /**********************
  *      TYPEDEFS

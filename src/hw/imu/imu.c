@@ -23,6 +23,8 @@
 #include <errno.h>
 #include <signal.h>
 
+#include <comm/f_comm.h>
+#include <hw/common.h>
 #include <hw/imu.h>
 #include "kalman.h"
 
@@ -67,7 +69,6 @@ static float yaw_integral = 0.0f; /* degrees */
 static int32_t imu_running = 0;
 static pthread_mutex_t angles_lock = PTHREAD_MUTEX_INITIALIZER;
 static struct imu_angles shared_angles = {0.0f, 0.0f, 0.0f};
-static int32_t debug_log = 0;
 
 /* offsets (stored in final units: accel -> g, gyro -> deg/s)
  * NOTE: accel offsets chosen so that after subtracting offsets:
@@ -509,17 +510,15 @@ static int32_t imu_fn_handler()
         last_roll = roll_f;
         last_pitch = pitch_f;
 
-        if (debug_log) {
-            LOG_TRACE("dt=%.4f ax=%.4f ay=%.4f az=%.4f gx=%.4f gy=%.4f gz=%.4f mag=%.3f",
+        LOG_TRACE("dt=%.4f ax=%.4f ay=%.4f az=%.4f gx=%.4f gy=%.4f gz=%.4f mag=%.3f",
                   dt, axc, ayc, azc, gxc, gyc, gzc, mag);
-            LOG_TRACE("acc_roll=%.3f acc_pitch=%.3f kal_roll=%.3f kal_pitch=%.3f yaw=%.3f rfac=%.3f/%.3f inn=%.3f/%.3f",
+        LOG_TRACE("acc_roll=%.3f acc_pitch=%.3f kal_roll=%.3f kal_pitch=%.3f yaw=%.3f rfac=%.3f/%.3f inn=%.3f/%.3f",
                   roll_acc, pitch_acc, roll_f, pitch_f, yaw_integral, rfac_roll, rfac_pitch, inn_roll, inn_pitch);
-        }
 
         usleep((int)(1000000.0f / (float)sample_hz));
     }
 
-    return EXIT_SUCCESS;
+    return 0;
 }
 
 /* ---------- Public API ---------- */
@@ -545,7 +544,6 @@ int32_t imu_kalman_init(const char *path, int32_t hz, float q_angle, float q_bia
     kalman_init(&k_roll, q_angle, q_bias, r_measure);
     kalman_init(&k_pitch, q_angle, q_bias, r_measure);
     yaw_integral = 0.0f;
-    debug_log = 0;
 
     /* zero offs and scales */
     memset(&offs, 0, sizeof(offs));
@@ -582,6 +580,17 @@ int32_t imu_kalman_init(const char *path, int32_t hz, float q_angle, float q_bia
 int32_t imu_fn_thread_handler()
 {
     int32_t ret;
+    char dev_path[MAX_PATH_LEN];
+
+    ret = iio_dev_get_path_by_name(IMU_SENSOR_NAME, dev_path, sizeof(dev_path));
+    if (ret) {
+        return ret;
+    }
+
+    ret = imu_kalman_init(dev_path, 100, 0.001f, 0.003f, 0.03f);
+    if (ret) {
+        LOG_ERROR("IMU init task has failed (%d)", ret);
+    }
 
     if (imu_running) {
         LOG_WARN("imu already running");
@@ -590,7 +599,7 @@ int32_t imu_fn_thread_handler()
 
     imu_running = 1;
     ret = imu_fn_handler();
-    if (ret != EXIT_SUCCESS) {
+    if (ret) {
         LOG_ERROR("IMU background task has failed (%d)", ret);
         imu_running = 0;
         return ret;
@@ -635,12 +644,6 @@ struct imu_angles imu_get_angles(void)
     out = shared_angles;
     pthread_mutex_unlock(&angles_lock);
     return out;
-}
-
-void imu_kalman_set_debug(int32_t on)
-{
-    debug_log = on ? 1 : 0;
-    LOG_INFO("imu_kalman_set_debug %d", debug_log);
 }
 
 void imu_kalman_set_tuning(float q_angle, float q_bias, float r_measure)
