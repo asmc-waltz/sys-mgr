@@ -13,7 +13,8 @@
 /*********************
  *      DEFINES
  *********************/
-#define MAX_ENTRIES 32
+#define COMP_NAME                       "SYSTEM-MANAGER"
+#define MAX_ENTRIES                     32
 
 /**********************
  *      TYPEDEFS
