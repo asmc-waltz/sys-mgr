@@ -43,7 +43,7 @@ int32_t rumble_trigger(uint32_t event_id, uint32_t ff_type, uint32_t duration);
 /*=====================
  * Other functions
  *====================*/
-int32_t ambient_light_sensor_late_init(const char *sensor_name);
+int32_t als_late_init(const char *sensor_name);
 
 int32_t hw_init();
 int32_t hw_deinit();

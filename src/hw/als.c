@@ -51,7 +51,7 @@
 /**********************
  *   GLOBAL FUNCTIONS
  **********************/
-int32_t ambient_light_sensor_late_init(const char *sensor_name)
+int32_t als_late_init(const char *sensor_name)
 {
     char device_path[MAX_PATH_LEN];
     char w_value[10];
