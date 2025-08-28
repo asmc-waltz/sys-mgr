@@ -194,3 +194,22 @@ int32_t find_device_path_by_name(const char *basepath, const char *fid, \
     return ret;
 }
 
+int32_t iio_dev_get_path_by_name(const char *name, char *dev_path, \
+                                 size_t path_len)
+{
+    int32_t ret;
+
+    ret = find_device_path_by_name(IIO_DEV_SYSFS_PATH, IIO_DEV_NAME_FILE, \
+                                   name, dev_path, path_len);
+    if (ret == 0) {
+        LOG_INFO("Found IIO device: %s (target=%s)\n", dev_path, name);
+    } else if (ret == -ENOENT) {
+        LOG_ERROR("Device '%s' not found\n", name);
+        return ret;
+    } else {
+        LOG_ERROR("Error: %s\n", strerror(-ret));
+        return ret;
+    }
+
+    return ret;
+}

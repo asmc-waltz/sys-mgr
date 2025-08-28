@@ -15,6 +15,9 @@
 /*********************
  *      DEFINES
  *********************/
+#define MAX_PATH_LEN                    256
+#define IIO_DEV_SYSFS_PATH              "/sys/bus/iio/devices"
+#define IIO_DEV_NAME_FILE               "name"
 
 /**********************
  *      TYPEDEFS
@@ -47,6 +50,9 @@ int32_t gf_fs_file_exists(const char *path);
 int32_t find_device_path_by_name(const char *basepath, const char *fid, \
                                  const char *id_str, char *result_path, \
                                  size_t result_max_len);
+
+int32_t iio_dev_get_path_by_name(const char *name, char *dev_path, \
+                                 size_t path_len);
 // proc_comm
 int32_t exec_cmd_with_interact(char *cmd, char *input);
 
