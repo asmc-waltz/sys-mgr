@@ -1,12 +1,55 @@
+/**
+ * @file network.c
+ *
+ */
+
+/*********************
+ *      INCLUDES
+ *********************/
+// #define LOG_LEVEL LOG_LEVEL_TRACE
+#if defined(LOG_LEVEL)
+#warning "LOG_LEVEL defined locally will override the global setting in this file"
+#endif
+#include <log.h>
+
 #include <stdio.h>
 #include <glib.h>
 #include <NetworkManager.h>
 
-#include <log.h>
-#include <sys_comm.h>
+#include <comm/f_comm.h>
 
+/*********************
+ *      DEFINES
+ *********************/
+
+/**********************
+ *      TYPEDEFS
+ **********************/
+
+/**********************
+ *  GLOBAL VARIABLES
+ **********************/
 NMClient *nm_client = NULL;
 
+/**********************
+ *  STATIC PROTOTYPES
+ **********************/
+
+/**********************
+ *  STATIC VARIABLES
+ **********************/
+
+/**********************
+ *      MACROS
+ **********************/
+
+/**********************
+ *   STATIC FUNCTIONS
+ **********************/
+
+/**********************
+ *   GLOBAL FUNCTIONS
+ **********************/
 NMClient * get_nm_client()
 {
     return nm_client;
@@ -18,7 +61,7 @@ void set_nm_client( NMClient *client)
     nm_client = client;
 }
 
-int network_manager_comm_init()
+int32_t network_manager_comm_init()
 {
     g_autoptr(GError) error = NULL;
     NMClient *client = NULL;
@@ -64,7 +107,7 @@ NMDevice * g_nm_device_get_by_iface(const char *exp_iface)
 }
 
 // TODO: Listen to state change signal from NM
-int disconnect_interface(const char *exp_iface)
+int32_t disconnect_interface(const char *exp_iface)
 {
     g_autoptr(GError) error = NULL;
     NMDevice *dev = g_nm_device_get_by_iface(exp_iface);

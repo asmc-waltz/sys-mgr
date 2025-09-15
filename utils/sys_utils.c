@@ -1,25 +1,39 @@
+/**
+ * @file sys_utils.c
+ *
+ */
+
+/*********************
+ *      INCLUDES
+ *********************/
+// #define LOG_LEVEL LOG_LEVEL_TRACE
+#if defined(LOG_LEVEL)
+#warning "LOG_LEVEL defined locally will override the global setting in this file"
+#endif
+#include <log.h>
+
 #include <dbus/dbus.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include <log.h>
-#include <dbus_comm.h>
+#include <comm/dbus_comm.h>
+#include <sched/task.h>
 
-// Encode cmd_data_t into an existing DBusMessage
-bool encode_data_frame(DBusMessage *msg, const cmd_data_t *cmd)
+// Encode remote_cmd_t into an existing DBusMessage
+bool encode_data_frame(DBusMessage *msg, const remote_cmd_t *cmd)
 {
     DBusMessageIter iter, array_iter, struct_iter, variant_iter;
 
     dbus_message_iter_init_append(msg, &iter);
 
     dbus_message_iter_append_basic(&iter, DBUS_TYPE_STRING, &cmd->component_id);
-    dbus_message_iter_append_basic(&iter, DBUS_TYPE_INT32, &cmd->topic_id);
+    dbus_message_iter_append_basic(&iter, DBUS_TYPE_INT32, &cmd->umid);
     dbus_message_iter_append_basic(&iter, DBUS_TYPE_INT32, &cmd->opcode);
 
     dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "(siiv)", &array_iter);
 
-    for (int i = 0; i < cmd->entry_count; ++i) {
+    for (int32_t i = 0; i < cmd->entry_count; ++i) {
         const payload_t *entry = &cmd->entries[i];
 
         dbus_message_iter_open_container(&array_iter, DBUS_TYPE_STRUCT, NULL, &struct_iter);
@@ -64,8 +78,8 @@ bool encode_data_frame(DBusMessage *msg, const cmd_data_t *cmd)
     return true;
 }
 
-// Decode DBusMessage into cmd_data_t
-bool decode_data_frame(DBusMessage *msg, cmd_data_t *out)
+// Decode DBusMessage into remote_cmd_t
+bool decode_data_frame(DBusMessage *msg, remote_cmd_t *out)
 {
     DBusMessageIter iter, array_iter, struct_iter, variant_iter;
 
@@ -77,7 +91,7 @@ bool decode_data_frame(DBusMessage *msg, cmd_data_t *out)
     dbus_message_iter_get_basic(&iter, &out->component_id);
     dbus_message_iter_next(&iter);
 
-    dbus_message_iter_get_basic(&iter, &out->topic_id);
+    dbus_message_iter_get_basic(&iter, &out->umid);
     dbus_message_iter_next(&iter);
 
     dbus_message_iter_get_basic(&iter, &out->opcode);
@@ -85,7 +99,7 @@ bool decode_data_frame(DBusMessage *msg, cmd_data_t *out)
 
     dbus_message_iter_recurse(&iter, &array_iter);
 
-    int i = 0;
+    int32_t i = 0;
     while (dbus_message_iter_get_arg_type(&array_iter) == DBUS_TYPE_STRUCT && i < MAX_ENTRIES) {
         payload_t *entry = &out->entries[i];
         dbus_message_iter_recurse(&array_iter, &struct_iter);
@@ -128,52 +142,52 @@ bool decode_data_frame(DBusMessage *msg, cmd_data_t *out)
 }
 
 // Create a method cmd to send via method call
-void create_method_frame(cmd_data_t *cmd)
+void create_method_frame(remote_cmd_t *cmd)
 {
     cmd->component_id = "terminal-ui";
-    cmd->topic_id = 1001;
-    cmd->opcode = 42;
+    cmd->umid = 1001;
+    cmd->opcode = OP_SET_BRIGHTNESS;
     cmd->entry_count = 2;
 
-    cmd->entries[0].key = "username";
+    cmd->entries[0].key = "backlight";
     cmd->entries[0].data_type = DBUS_TYPE_STRING;
     cmd->entries[0].data_length = 0;
-    cmd->entries[0].value.str = "alice";
+    cmd->entries[0].value.str = "max";
 
-    cmd->entries[1].key = "age";
+    cmd->entries[1].key = "brightness";
     cmd->entries[1].data_type = DBUS_TYPE_INT32;
-    cmd->entries[1].data_length = 0;
-    cmd->entries[1].value.i32 = 30;
+    cmd->entries[1].data_length = 1;
+    cmd->entries[1].value.i32 = 100;
 }
 
 // Create a sample cmd to send as a signal
-void create_signal_frame(cmd_data_t *cmd)
+void create_signal_frame(remote_cmd_t *cmd)
 {
     cmd->component_id = "terminal-ui";
-    cmd->topic_id = 1001;
-    cmd->opcode = 42;
+    cmd->umid = 1001;
+    cmd->opcode = OP_SET_BRIGHTNESS;
     cmd->entry_count = 2;
 
-    cmd->entries[0].key = "username";
+    cmd->entries[0].key = "backlight";
     cmd->entries[0].data_type = DBUS_TYPE_STRING;
     cmd->entries[0].data_length = 0;
-    cmd->entries[0].value.str = "haha";
+    cmd->entries[0].value.str = "min";
 
-    cmd->entries[1].key = "age";
+    cmd->entries[1].key = "brightness";
     cmd->entries[1].data_type = DBUS_TYPE_INT32;
-    cmd->entries[1].data_length = 0;
-    cmd->entries[1].value.i32 = 31;
+    cmd->entries[1].data_length = 1;
+    cmd->entries[1].value.i32 = 1;
 }
 
-// Send a DBus method call with encoded cmd_data_t
-int send_method_call(DBusConnection *conn)
+// Send a DBus method call with encoded remote_cmd_t
+int32_t send_method_call(DBusConnection *conn)
 {
     DBusMessage *msg;
     DBusPendingCall *pending;
     DBusMessage *reply;
     DBusMessageIter reply_args;
-    cmd_data_t cmd;
-    int ret = EXIT_SUCCESS;
+    remote_cmd_t cmd;
+    int32_t ret = EXIT_SUCCESS;
 
     msg = dbus_message_new_method_call(SYS_MGR_DBUS_SER,
                                        SYS_MGR_DBUS_OBJ_PATH,
@@ -226,11 +240,11 @@ int send_method_call(DBusConnection *conn)
     return ret;
 }
 
-// Send a DBus signal with encoded cmd_data_t
-int send_signal(DBusConnection *conn)
+// Send a DBus signal with encoded remote_cmd_t
+int32_t send_signal(DBusConnection *conn)
 {
     DBusMessage *msg;
-    cmd_data_t cmd;
+    remote_cmd_t cmd;
 
     msg = dbus_message_new_signal(UI_DBUS_OBJ_PATH,
                                   UI_DBUS_IFACE,
@@ -261,12 +275,12 @@ int send_signal(DBusConnection *conn)
     return EXIT_SUCCESS;
 }
 
-// Main entry point of the CLI test application
-int main(int argc, char **argv)
+// Main entry point32_t of the CLI test application
+int32_t main(int32_t argc, char **argv)
 {
     DBusError err;
     DBusConnection *conn;
-    int ret;
+    int32_t ret;
 
     dbus_error_init(&err);
     conn = dbus_bus_get(DBUS_BUS_SYSTEM, &err);
