@@ -63,7 +63,7 @@ int32_t process_opcode_endless(uint32_t opcode, void *data)
         ret = dbus_fn_thread_handler();
         break;
     case OP_START_HW_MON:
-        ret = hardware_monitor_loop();
+        ret = hw_monitor_loop();
         break;
     case OP_START_IMU:
         ret = imu_fn_thread_handler();
@@ -81,10 +81,11 @@ int32_t process_opcode(uint32_t opcode, void *data)
     int32_t ret = 0;
 
     switch (opcode) {
-    case OP_BACKLIGHT_INIT:
-        backlight_setup();
+    case OP_BACKLIGHT_ON:
+        brightness_ramp(0, 100, 500000);
         break;
-    case OP_BACKLIGHT_DEINIT:
+    case OP_BACKLIGHT_OFF:
+        brightness_ramp(100, 0, 500000);
         break;
     case OP_SET_BRIGHTNESS:
         set_brightness( (*((remote_cmd_t *)data)).entries[1].value.i32);
@@ -123,30 +124,3 @@ int32_t process_opcode(uint32_t opcode, void *data)
     return ret;
 }
 
-int32_t create_local_simple_task(uint8_t flow, uint8_t duration, uint32_t opcode)
-{
-    work_t *work = create_work(LOCAL, flow, duration, opcode, NULL);
-    if (!work) {
-        LOG_ERROR("Failed to create work from cmd");
-        return -1;
-    }
-
-    push_work(work);
-
-    return 0;
-}
-
-int32_t create_remote_task(uint8_t flow, void *data)
-{
-    work_t *work;
-
-    work = create_work(REMOTE, flow, SHORT, OP_DBUS_SENT_CMD_DATA, data);
-    if (!work) {
-        LOG_ERROR("Failed to create work from cmd");
-        return -1;
-    }
-
-    push_work(work);
-
-    return 0;
-}

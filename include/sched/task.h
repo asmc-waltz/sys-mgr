@@ -43,8 +43,6 @@ void * main_task_handler(void* arg);
 
 int32_t process_opcode_endless(uint32_t opcode, void *data);
 int32_t process_opcode(uint32_t opcode, void *data);
-int32_t create_local_simple_task(uint8_t flow, uint8_t duration, uint32_t opcode);
-int32_t create_remote_task(uint8_t flow, void *data);
 
 /**********************
  *  STATIC VARIABLES
