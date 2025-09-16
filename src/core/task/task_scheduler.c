@@ -236,7 +236,7 @@ void *main_task_handler(void* arg)
         LOG_TRACE("Task type: [%d] - flow [%d] - opcode [%d]", w->type, \
                   w->flow, w->opcode);
 
-        if (w->flow == BLOCK) {
+        if (w->flow == BLOCK && w->duration != ENDLESS) {
             // run blocking task; return after it completes
             // other tasks in queue wait until it's done
             ret = create_blocking_task(w);
@@ -244,6 +244,11 @@ void *main_task_handler(void* arg)
             // create a thread to handle requests in the background
             // the function returns immediately after the thread is created
             ret = create_non_blocking_task(w);
+        } else {
+            LOG_WARN("Invalid task specification:\n" \
+                     "\tFlow [%d]\n" \
+                     "\tDuration [%d]", \
+                     w->flow, w->duration);
         }
     };
 
