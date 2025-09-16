@@ -10,6 +10,7 @@
  *********************/
 #include <stdint.h>
 #include <pthread.h>
+#include <stdatomic.h>
 
 #include <comm/dbus_comm.h>
 
@@ -49,6 +50,7 @@ typedef struct workqueue {
     work_t *tail;
     pthread_mutex_t mutex;
     pthread_cond_t cond;
+    atomic_int active_cnt;
 } workqueue_t;
 
 /**********************
@@ -85,8 +87,9 @@ work_t *create_work(uint8_t type, uint8_t flow, uint8_t duration, \
                     uint32_t opcode, void *data);
 void delete_work(work_t *work);
 void push_work(work_t *work);
-work_t* pop_work_wait();
-void workqueue_stop();
+work_t *pop_work_wait_safe();
+void workqueue_handler_wakeup();
+int32_t workqueue_active_count(void);
 
 /**********************
  *   STATIC FUNCTIONS

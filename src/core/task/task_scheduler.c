@@ -214,7 +214,7 @@ void *main_task_handler(void* arg)
         // remove sleep to handle parallel tasks faster after request
         // usleep(200000);
         LOG_TRACE("[Task handler] --> waiting for new task...");
-        w = pop_work_wait();
+        w = pop_work_wait_safe();
         /*
          * After a work item is popped from the workqueue, it is no longer linked
          * to the work list. This means:
