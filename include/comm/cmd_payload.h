@@ -14,6 +14,7 @@
  *      DEFINES
  *********************/
 #define COMP_NAME                       "SYSTEM-MANAGER"
+#define COMP_ID                         02
 #define MAX_ENTRIES                     32
 
 /**********************
@@ -85,7 +86,7 @@ typedef struct {
 // Top-level data frame structure
 typedef struct {
     const char *component_id;    // Identifier of the sender
-    uint32_t umid;            // Topic ID
+    uint32_t umid;                // Message ID
     uint32_t opcode;              // Operation code
     uint8_t flow;
     uint8_t duration;
