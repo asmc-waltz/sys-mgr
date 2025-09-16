@@ -57,7 +57,7 @@ int32_t common_hardware_init()
     brightness_ramp(0, 100, 500000);
 
     char dev_path[MAX_PATH_LEN];
-    als_late_init("opt3001", dev_path, sizeof(dev_path));
+    als_late_init(ALS_SENSOR_NAME, dev_path, sizeof(dev_path));
     als_read_illuminance(dev_path);
 }
 
