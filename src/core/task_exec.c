@@ -62,6 +62,9 @@ int32_t process_opcode_endless(uint32_t opcode, void *data)
     case OP_START_DBUS:
         ret = dbus_fn_thread_handler();
         break;
+    case OP_START_HW_MON:
+        ret = hardware_monitor_loop();
+        break;
     case OP_START_IMU:
         ret = imu_fn_thread_handler();
         break;

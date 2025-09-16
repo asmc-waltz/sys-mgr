@@ -64,6 +64,9 @@ typedef enum {
     OP_AUDIO_INIT,
     OP_AUDIO_RELEASE,
     OP_SOUND_PLAY,
+
+    /* HARDWARE */
+    OP_START_HW_MON,
 } opcode_t;
 
 

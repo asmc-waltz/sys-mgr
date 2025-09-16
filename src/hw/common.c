@@ -15,6 +15,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
+#include <signal.h>
 #include <errno.h>
 
 #include <comm/f_comm.h>
@@ -31,6 +32,7 @@
 /**********************
  *  GLOBAL VARIABLES
  **********************/
+extern volatile sig_atomic_t g_run;
 
 /**********************
  *  STATIC PROTOTYPES
@@ -51,7 +53,7 @@
 /**********************
  *   GLOBAL FUNCTIONS
  **********************/
-int32_t common_hardware_init()
+int32_t common_hw_init()
 {
     backlight_setup();
     brightness_ramp(0, 100, 500000);
@@ -61,13 +63,25 @@ int32_t common_hardware_init()
     als_read_illuminance(dev_path);
 }
 
-int32_t common_hardware_deinit()
+int32_t common_hw_deinit()
 {
     backlight_setup();
     brightness_ramp(100, 0, 500000);
 }
 
-int32_t hardware_monitor_loop()
+/*
+ * System Manager must keep the hardware monitor loop running through
+ * the whole service life. It periodically checks and reports hardware
+ * state. This loop must be initialized by System Manager right after
+ * hardware initialization is completed at service start.
+ */
+int32_t hw_monitor_loop()
 {
-    ;
+    LOG_INFO("Hardware monitor is running...");
+    while (g_run) {
+        usleep(200000);
+    }
+    LOG_INFO("Hardware monitor thread exiting...");
+
+    return 0;
 }

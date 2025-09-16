@@ -146,6 +146,8 @@ int32_t main(void)
 
     create_local_simple_task(NON_BLOCK, ENDLESS, OP_START_DBUS);
     create_local_simple_task(NON_BLOCK, SHORT, OP_AUDIO_INIT);
+    // Start hardware monitor after completing hardware initialization
+    create_local_simple_task(NON_BLOCK, ENDLESS, OP_START_HW_MON);
 
     ret = network_manager_comm_init();
     if (ret) {
