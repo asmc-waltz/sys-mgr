@@ -43,16 +43,14 @@ typedef enum {
     OP_START_DBUS,
     OP_DBUS_SENT_CMD,
     OP_DBUS_SENT_CMD_DATA,
+
+    /* HARDWARE */
+    OP_START_HW_MON,
     /* Brightness API */
-    OP_BACKLIGHT_INIT,
-    OP_BACKLIGHT_DEINIT,
+    OP_BACKLIGHT_ON,
+    OP_BACKLIGHT_OFF,
     OP_GET_BRIGHTNESS,
     OP_SET_BRIGHTNESS,
-    /* Network API */
-    OP_WIFI_RESCAN,
-    OP_WIFI_GET_AP_LIST,
-    OP_WIFI_GET_AP_INFO,
-    OP_WIFI_CONN_AP,
     /* Vibrator API */
     OP_LEFT_VIBRATOR,
     OP_RIGHT_VIBRATOR,
@@ -65,8 +63,11 @@ typedef enum {
     OP_AUDIO_RELEASE,
     OP_SOUND_PLAY,
 
-    /* HARDWARE */
-    OP_START_HW_MON,
+    /* Network API */
+    OP_WIFI_RESCAN,
+    OP_WIFI_GET_AP_LIST,
+    OP_WIFI_GET_AP_INFO,
+    OP_WIFI_CONN_AP,
 } opcode_t;
 
 
@@ -128,6 +129,11 @@ int32_t remote_cmd_add_string(remote_cmd_t *cmd, const char *key, \
               const char *value);
 int32_t remote_cmd_add_int(remote_cmd_t *cmd, const char *key, int32_t value);
 
+int32_t create_local_simple_task(uint8_t flow, uint8_t duration, uint32_t opcode);
+int32_t create_remote_task(uint8_t flow, void *data);
+remote_cmd_t *create_remote_task_data(uint8_t flow, uint8_t duration, \
+                                      uint32_t opcode);
+int32_t create_remote_simple_task(uint8_t flow, uint8_t duration, uint32_t opcode);
 /**********************
  *  STATIC VARIABLES
  **********************/

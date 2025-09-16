@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <errno.h>
 
 #include <comm/dbus_comm.h>
 #include <comm/cmd_payload.h>
@@ -145,3 +146,81 @@ int32_t remote_cmd_add_int(remote_cmd_t *cmd, const char *key, int32_t value)
     return 0;
 }
 
+/*
+ * Local task runs only in the task handler. Its behavior depends on the
+ * current state of the handler: it may run immediately after being pushed
+ * into the workqueue, or it may wait until the handler is free if a
+ * previous task is still blocking.
+ */
+int32_t create_local_simple_task(uint8_t flow, uint8_t duration, uint32_t opcode)
+{
+    work_t *work = create_work(LOCAL, flow, duration, opcode, NULL);
+    if (!work) {
+        LOG_ERROR("Failed to create work from cmd");
+        return -EINVAL;
+    }
+
+    push_work(work);
+
+    return 0;
+}
+
+/*
+ * Remote task is created locally and pushed into the workqueue like a
+ * local task. The difference is that it is processed on the target
+ * service (e.g. System Manager). It is not blocked in this service,
+ * because all required actions are sent as commands to another service
+ * via DBus.
+ */
+int32_t create_remote_task(uint8_t flow, void *data)
+{
+    work_t *work;
+
+    work = create_work(REMOTE, flow, SHORT, OP_DBUS_SENT_CMD_DATA, data);
+    if (!work) {
+        LOG_ERROR("Failed to create work from cmd");
+        return -EINVAL;
+    }
+
+    push_work(work);
+
+    return 0;
+}
+
+remote_cmd_t *create_remote_task_data(uint8_t flow, uint8_t duration, \
+                                      uint32_t opcode)
+{
+    remote_cmd_t *cmd;
+
+    cmd = create_remote_cmd();
+    if (!cmd) {
+        return NULL;
+    }
+
+    remote_cmd_init(cmd, COMP_NAME, COMP_ID, opcode, \
+                        flow, duration);
+
+    return cmd;
+}
+
+/*
+ * After a remote command is sent to another service, it is used to create
+ * a local task on that service. The command must contain specific data so
+ * the service knows what to do.
+ *
+ * Each remote command requires at least two steps:
+ * 1. Create the remote command data (defines the expected operation on target)
+ * 2. Create the local task containing that data
+ */
+int32_t create_remote_simple_task(uint8_t flow, uint8_t duration, uint32_t opcode)
+{
+    remote_cmd_t *cmd;
+
+    cmd = create_remote_task_data(flow, duration, opcode);
+    if (!cmd) {
+        LOG_ERROR("Failed to create remote command payload");
+        return -EINVAL;
+    }
+
+    return create_remote_task(NON_BLOCK, (void *)cmd);
+}
