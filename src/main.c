@@ -25,6 +25,7 @@
 #include <comm/dbus_comm.h>
 #include <comm/f_comm.h>
 #include <comm/net/network.h>
+#include <comm/cmd_payload.h>
 #include <sched/workqueue.h>
 #include <sched/task.h>
 #include <audio/sound.h>
@@ -65,7 +66,7 @@ static void sig_handler(int32_t sig)
             LOG_WARN("[+] Received SIGINT (Ctrl+C). Exiting...");
             g_run = 0;
             event_set(event_fd, SIGINT);
-            workqueue_stop();
+            workqueue_handler_wakeup();
             break;
         case SIGTERM:
             LOG_WARN("[+] Received SIGTERM. Shutdown...");
@@ -176,7 +177,7 @@ exit_listener:
     event_set(event_fd, SIGUSR1);
 
 exit_workqueue:
-    workqueue_stop();
+    workqueue_handler_wakeup();
     pthread_join(task_handler, NULL);
     cleanup_event_file();
 
