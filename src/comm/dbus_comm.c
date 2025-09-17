@@ -317,11 +317,12 @@ static int32_t dbus_connection_event_handler(DBusConnection *conn)
 {
     DBusMessage *msg;
 
-    while (dbus_connection_read_write_dispatch(conn, 0)) {
-        while ((msg = dbus_connection_pop_message(conn)) != NULL) {
-            handle_message(conn, msg);
-            dbus_message_unref(msg);
-        }
+    if (!dbus_connection_read_write_dispatch(conn, 0))
+        return 0;
+
+    while ((msg = dbus_connection_pop_message(conn)) != NULL) {
+        handle_message(conn, msg);
+        dbus_message_unref(msg);
     }
 
     return 0;
