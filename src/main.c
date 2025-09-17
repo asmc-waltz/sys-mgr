@@ -28,7 +28,6 @@
 #include <comm/cmd_payload.h>
 #include <sched/workqueue.h>
 #include <sched/task.h>
-#include <audio/sound.h>
 
 /*********************
  *      DEFINES
@@ -85,34 +84,129 @@ static int32_t setup_signal_handler()
 {
     if (signal(SIGINT, sig_handler) == SIG_ERR) {
         LOG_ERROR("Error registering signal SIGINT handler");
-        return -1;
+        return -EIO;
     }
 
     if (signal(SIGTERM, sig_handler) == SIG_ERR) {
         LOG_ERROR("Error registering signal SIGTERM handler");
-        return -1;
+        return -EIO;
     }
 
     if (signal(SIGABRT, sig_handler) == SIG_ERR) {
         LOG_ERROR("Error registering signal SIGABRT handler");
-        return -1;
+        return -EIO;
     }
 
     return 0;
 }
 
+// TODO: create thread pool
+    pthread_t task_pool_0;
+    pthread_t task_pool_1;
+
+static int32_t service_startup_flow(void)
+{
+    int32_t ret;
+    pthread_t dbus_handler;
+
+    /* Prepare eventfd to notify epoll when communicating with threads */
+    ret = init_event_file();
+    if (ret) {
+        LOG_FATAL("Failed to initialize eventfd, ret=%d", ret);
+        goto exit_err;
+    }
+
+    /* Create main task handler thread */
+    ret = pthread_create(&task_pool_0, NULL, workqueue_handler, NULL);
+    if (ret) {
+        LOG_FATAL("Failed to create worker thread: %s", strerror(ret));
+        goto exit_event;
+    }
+
+    /* Create main task handler thread */
+    ret = pthread_create(&task_pool_1, NULL, workqueue_handler, NULL);
+    if (ret) {
+        LOG_FATAL("Failed to create worker thread: %s", strerror(ret));
+        goto exit_event;
+    }
+
+    /* Create DBus listener thread */
+    ret = pthread_create(&dbus_handler, NULL, dbus_fn_thread_handler, NULL);
+    if (ret) {
+        LOG_FATAL("Failed to create DBus listener thread: %s", strerror(ret));
+        goto exit_workqueue;
+    }
+
+
+    ret = network_manager_comm_init();
+    if (ret) {
+        LOG_FATAL("Failed to create network manager client: %s", strerror(ret));
+        goto exit_dbus;
+    }
+
+
+    create_local_simple_task(WORK_PRIO_NORMAL, WORK_DURATION_SHORT, OP_AUDIO_INIT);
+
+    LOG_INFO("System Manager initialization completed");
+    return 0;
+
+/* Cleanup sequence in case of failure */
+exit_dbus:
+    event_set(event_fd, SIGUSR1);
+
+exit_workqueue:
+    workqueue_handler_wakeup();
+    pthread_join(task_pool_0, NULL);
+    pthread_join(task_pool_1, NULL);
+
+exit_event:
+    cleanup_event_file();
+
+exit_err:
+    return ret;
+}
+
+/**
+ * Gracefully shutdown the system services
+ *
+ * This function ensures all normal tasks are finished, then stops
+ * endless tasks and notifies system and DBus about shutdown.
+ */
+static void service_shutdown_flow(void)
+{
+    int32_t ret;
+    int32_t cnt;
+
+
+    create_local_simple_task(WORK_PRIO_NORMAL, WORK_DURATION_SHORT, OP_AUDIO_RELEASE);
+
+    /* Wait until workqueue is fully drained */
+    cnt = workqueue_active_count();
+    while (cnt) {
+        LOG_TRACE("Waiting for workqueue to be free, remaining work %d", cnt);
+        usleep(100000);
+        cnt = workqueue_active_count();
+    }
+
+    /* Stop background threads and notify shutdown */
+    g_run = 0;                      /* Signal threads to stop */
+    event_set(event_fd, SIGINT);    /* Notify DBus/system about shutdown */
+    workqueue_handler_wakeup();     /* Wake up any waiting workqueue threads */
+
+    // TODO:
+    pthread_join(task_pool_0, NULL);
+    pthread_join(task_pool_1, NULL);
+    cleanup_event_file();
+
+    LOG_INFO("Service shutdown flow completed");
+}
+
 
 static int32_t main_loop()
 {
-    uint32_t cnt = 0;
-
     LOG_INFO("System manager service is running...");
     while (g_run) {
         usleep(200000);
-        if (++cnt == 20) {
-            cnt = 0;
-            is_task_handler_idle();
-        }
     };
 
     LOG_INFO("System manager service is exiting...");
@@ -128,59 +222,22 @@ int32_t main(void)
     int32_t ret = 0;
 
     LOG_INFO("|---------------------> SYSTEM MANAGER <----------------------|");
-    if (setup_signal_handler()) {
-        goto exit_error;
-    }
-
-    ret = pthread_create(&task_handler, NULL, main_task_handler, NULL);
+    ret = setup_signal_handler();
     if (ret) {
-        LOG_FATAL("Failed to create worker thread: %s", strerror(ret));
-        goto exit_error;
+        return ret;
     }
 
-    // Prepare eventfd to notify epoll when communicating with a thread
-    ret = init_event_file();
+    ret = service_startup_flow();
     if (ret) {
-        LOG_FATAL("Failed to initialize eventfd");
-        goto exit_workqueue;
+        LOG_FATAL("System Manager init flow failed, ret=%d", ret);
+        return ret;
     }
 
-    create_local_simple_task(NON_BLOCK, ENDLESS, OP_START_DBUS);
-    create_local_simple_task(NON_BLOCK, SHORT, OP_AUDIO_INIT);
-    // Start hardware monitor after completing hardware initialization
-    create_local_simple_task(NON_BLOCK, ENDLESS, OP_START_HW_MON);
-
-    ret = network_manager_comm_init();
-    if (ret) {
-        LOG_FATAL("Failed to create network manager client: %s", strerror(ret));
-        goto exit_listener;
-    }
-
-    // System manager's primary tasks are executed within a loop
     ret = main_loop();
     if (ret) {
-        goto exit_nm;
+        return ret;
     }
-
-    pthread_join(task_handler, NULL);
-    // TODO: release audio HW
-    snd_sys_release();
-    cleanup_event_file();
 
     LOG_INFO("|-------------> All services stopped. Safe exit <-------------|");
     return 0;
-
-exit_nm:
-    network_manager_comm_deinit();
-
-exit_listener:
-    event_set(event_fd, SIGUSR1);
-
-exit_workqueue:
-    workqueue_handler_wakeup();
-    pthread_join(task_handler, NULL);
-    cleanup_event_file();
-
-exit_error:
-    return -1;
 }

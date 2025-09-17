@@ -56,7 +56,6 @@ extern volatile sig_atomic_t g_run;
 int32_t common_hw_init()
 {
     backlight_setup();
-    brightness_ramp(0, 100, 500000);
 
     char dev_path[MAX_PATH_LEN];
     als_late_init(ALS_SENSOR_NAME, dev_path, sizeof(dev_path));
@@ -66,7 +65,6 @@ int32_t common_hw_init()
 int32_t common_hw_deinit()
 {
     backlight_setup();
-    brightness_ramp(100, 0, 500000);
 }
 
 /*
