@@ -30,18 +30,7 @@
 /**********************
  *  GLOBAL PROTOTYPES
  **********************/
-void normal_task_cnt_reset();
-void normal_task_cnt_inc();
-void normal_task_cnt_dec();
-int32_t normal_task_cnt_get();
-void endless_task_cnt_reset();
-void endless_task_cnt_inc();
-void endless_task_cnt_dec();
-int32_t endless_task_cnt_get();
-bool is_task_handler_idle();
-void * main_task_handler(void* arg);
-
-int32_t process_opcode_endless(uint32_t opcode, void *data);
+void * workqueue_handler(void* arg);
 int32_t process_opcode(uint32_t opcode, void *data);
 
 /**********************
