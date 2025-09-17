@@ -97,14 +97,14 @@ void delete_local_cmd(local_cmd_t *cmd)
 }
 
 void remote_cmd_init(remote_cmd_t *cmd, const char *component_id, int32_t umid, \
-                     int32_t opcode, uint8_t flow, uint8_t duration)
+                     int32_t opcode, uint8_t priority, uint8_t duration)
 {
     int32_t i;
 
     cmd->component_id = component_id;
     cmd->umid = umid;
     cmd->opcode = opcode;
-    cmd->flow = flow;
+    cmd->prio = priority;
     cmd->duration = duration;
     cmd->entry_count = 0;
 
@@ -152,9 +152,11 @@ int32_t remote_cmd_add_int(remote_cmd_t *cmd, const char *key, int32_t value)
  * into the workqueue, or it may wait until the handler is free if a
  * previous task is still blocking.
  */
-int32_t create_local_simple_task(uint8_t flow, uint8_t duration, uint32_t opcode)
+int32_t create_local_simple_task(uint8_t priority, uint8_t duration, \
+                                 uint32_t opcode)
 {
-    work_t *work = create_work(LOCAL, flow, duration, opcode, NULL);
+    work_t *work = create_work(WORK_TYPE_LOCAL, \
+                               priority, duration, opcode, NULL);
     if (!work) {
         LOG_ERROR("Failed to create work from cmd");
         return -EINVAL;
@@ -172,11 +174,12 @@ int32_t create_local_simple_task(uint8_t flow, uint8_t duration, uint32_t opcode
  * because all required actions are sent as commands to another service
  * via DBus.
  */
-int32_t create_remote_task(uint8_t flow, void *data)
+int32_t create_remote_task(uint8_t priority, void *data)
 {
     work_t *work;
 
-    work = create_work(REMOTE, flow, SHORT, OP_DBUS_SENT_CMD_DATA, data);
+    work = create_work(WORK_TYPE_REMOTE, priority, WORK_DURATION_SHORT, \
+                       OP_DBUS_SENT_CMD, data);
     if (!work) {
         LOG_ERROR("Failed to create work from cmd");
         return -EINVAL;
@@ -187,7 +190,7 @@ int32_t create_remote_task(uint8_t flow, void *data)
     return 0;
 }
 
-remote_cmd_t *create_remote_task_data(uint8_t flow, uint8_t duration, \
+remote_cmd_t *create_remote_task_data(uint8_t priority, uint8_t duration, \
                                       uint32_t opcode)
 {
     remote_cmd_t *cmd;
@@ -197,8 +200,7 @@ remote_cmd_t *create_remote_task_data(uint8_t flow, uint8_t duration, \
         return NULL;
     }
 
-    remote_cmd_init(cmd, COMP_NAME, COMP_ID, opcode, \
-                        flow, duration);
+    remote_cmd_init(cmd, COMP_NAME, COMP_ID, opcode, priority, duration);
 
     return cmd;
 }
@@ -212,15 +214,15 @@ remote_cmd_t *create_remote_task_data(uint8_t flow, uint8_t duration, \
  * 1. Create the remote command data (defines the expected operation on target)
  * 2. Create the local task containing that data
  */
-int32_t create_remote_simple_task(uint8_t flow, uint8_t duration, uint32_t opcode)
+int32_t create_remote_simple_task(uint8_t priority, uint8_t duration, uint32_t opcode)
 {
     remote_cmd_t *cmd;
 
-    cmd = create_remote_task_data(flow, duration, opcode);
+    cmd = create_remote_task_data(priority, duration, opcode);
     if (!cmd) {
         LOG_ERROR("Failed to create remote command payload");
         return -EINVAL;
     }
 
-    return create_remote_task(NON_BLOCK, (void *)cmd);
+    return create_remote_task(WORK_PRIO_HIGH, (void *)cmd);
 }
