@@ -54,28 +54,6 @@
 /**********************
  *   GLOBAL FUNCTIONS
  **********************/
-int32_t process_opcode_endless(uint32_t opcode, void *data)
-{
-    int32_t ret = 0;
-
-    switch (opcode) {
-    case OP_START_DBUS:
-        ret = dbus_fn_thread_handler();
-        break;
-    case OP_START_HW_MON:
-        ret = hw_monitor_loop();
-        break;
-    case OP_START_IMU:
-        ret = imu_fn_thread_handler();
-        break;
-    default:
-        LOG_ERROR("Opcode [%d] is invalid", opcode);
-        break;
-    }
-
-    return ret;
-}
-
 int32_t process_opcode(uint32_t opcode, void *data)
 {
     int32_t ret = 0;

@@ -61,7 +61,7 @@ static workqueue_t g_wqueue = {
 /**********************
  *   GLOBAL FUNCTIONS
  **********************/
-work_t *create_work(uint8_t type, uint8_t flow, uint8_t duration, \
+work_t *create_work(uint8_t type, uint8_t priority, uint8_t duration, \
                     uint32_t opcode, void *data)
 {
     work_t *w;
@@ -71,7 +71,7 @@ work_t *create_work(uint8_t type, uint8_t flow, uint8_t duration, \
         return NULL;
 
     w->type = type;
-    w->flow = flow;
+    w->prio = priority;
     w->duration = duration;
     w->opcode = opcode;
     w->data = data;
