@@ -242,62 +242,86 @@ static int32_t dispatch_cmd_from_message(DBusMessage *msg)
     return 0;
 }
 
-static int32_t dbus_connection_event_handler(DBusConnection *conn)
+static int32_t handle_method_call(DBusConnection *conn, DBusMessage *msg)
 {
-    DBusMessage *msg = NULL;
     DBusMessage *reply = NULL;
     DBusMessageIter args;
     const char *reply_str = "Method reply OK";
     int32_t ret;
 
-    while (dbus_connection_read_write_dispatch(conn, 0)) {
-        msg = dbus_connection_pop_message(conn);
-        if (!msg) {
-            usleep(10000);
-            continue;
-        }
+    const char *iface = dbus_message_get_interface(msg);
+    const char *member = dbus_message_get_member(msg);
 
-        if (dbus_message_get_type(msg) == DBUS_MESSAGE_TYPE_METHOD_CALL) {
-            const char *iface = dbus_message_get_interface(msg);
-            const char *member = dbus_message_get_member(msg);
+    if (!iface || !member)
+        return -EINVAL;
 
-            if (iface && member && strcmp(iface, SER_IFACE) == 0 && \
-                strcmp(member, SER_METH) == 0) {
-                ret = dispatch_cmd_from_message(msg);
-                if (ret < 0) {
-                    LOG_ERROR("Dispatch failed: iface=%s, meth=%s", iface, \
-                              member);
-                    reply = dbus_message_new_error(msg, DBUS_ERROR_FAILED, \
-                                                   "Dispatch failed");
-                } else {
-                    reply = dbus_message_new_method_return(msg);
-                    dbus_message_iter_init_append(reply, &args);
-                    dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, \
-                                                   &reply_str);
-                }
+    if (strcmp(iface, SER_IFACE) || strcmp(member, SER_METH))
+        return 0; /* not our method */
 
-                if (reply) {
-                    dbus_connection_send(conn, reply, NULL);
-                    dbus_message_unref(reply);
-                }
-            }
-        } else if (dbus_message_get_type(msg) == DBUS_MESSAGE_TYPE_SIGNAL) {
-            const char *iface = dbus_message_get_interface(msg);
-            const char *member = dbus_message_get_member(msg);
+    ret = dispatch_cmd_from_message(msg);
+    if (ret < 0) {
+        LOG_ERROR("Dispatch failed: iface=%s, meth=%s", iface, member);
+        reply = dbus_message_new_error(msg, DBUS_ERROR_FAILED,
+                                       "Dispatch failed");
+    } else {
+        reply = dbus_message_new_method_return(msg);
+        dbus_message_iter_init_append(reply, &args);
+        dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &reply_str);
+    }
 
-            if (iface && member && strcmp(iface, LISTEN_IFACE) == 0 && \
-                strcmp(member, LISTEN_SIG) == 0) {
-                ret = dispatch_cmd_from_message(msg);
-                if (ret < 0)
-                    LOG_ERROR("Dispatch signal failed: %s.%s",
-                          iface, member);
-            }
-        } else if (dbus_message_get_type(msg) == DBUS_MESSAGE_TYPE_METHOD_RETURN) {
-            LOG_TRACE("Dbus method return is detected");
-        }
+    if (reply) {
+        dbus_connection_send(conn, reply, NULL);
+        dbus_message_unref(reply);
+    }
 
-        dbus_message_unref(msg);
+    return ret;
+}
+
+static int32_t handle_signal(DBusMessage *msg)
+{
+    int32_t ret;
+    const char *iface = dbus_message_get_interface(msg);
+    const char *member = dbus_message_get_member(msg);
+
+    if (!iface || !member)
+        return -EINVAL;
+
+    if (strcmp(iface, LISTEN_IFACE) || strcmp(member, LISTEN_SIG))
+        return 0; /* not our signal */
+
+    ret = dispatch_cmd_from_message(msg);
+    if (ret < 0)
+        LOG_ERROR("Dispatch signal failed: %s.%s", iface, member);
+
+    return ret;
+}
+
+static void handle_message(DBusConnection *conn, DBusMessage *msg)
+{
+    switch (dbus_message_get_type(msg)) {
+    case DBUS_MESSAGE_TYPE_METHOD_CALL:
+        handle_method_call(conn, msg);
         break;
+    case DBUS_MESSAGE_TYPE_SIGNAL:
+        handle_signal(msg);
+        break;
+    case DBUS_MESSAGE_TYPE_METHOD_RETURN:
+        LOG_TRACE("Dbus method return detected");
+        break;
+    default:
+        break;
+    }
+}
+
+static int32_t dbus_connection_event_handler(DBusConnection *conn)
+{
+    DBusMessage *msg;
+
+    while (dbus_connection_read_write_dispatch(conn, 0)) {
+        while ((msg = dbus_connection_pop_message(conn)) != NULL) {
+            handle_message(conn, msg);
+            dbus_message_unref(msg);
+        }
     }
 
     return 0;
