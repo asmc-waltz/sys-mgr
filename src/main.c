@@ -27,7 +27,6 @@
 #include "comm/net/network.h"
 #include "comm/cmd_payload.h"
 #include "sched/workqueue.h"
-#include "task.h"
 
 /*********************
  *      DEFINES

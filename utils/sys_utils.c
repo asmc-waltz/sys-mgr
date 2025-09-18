@@ -16,9 +16,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 #include "comm/dbus_comm.h"
-#include "task.h"
 
 // Encode remote_cmd_t into an existing DBusMessage
 bool encode_data_frame(DBusMessage *msg, const remote_cmd_t *cmd)

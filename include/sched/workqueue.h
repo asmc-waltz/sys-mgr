@@ -23,6 +23,8 @@
 #define NR_WORKQUEUE                    1
 #define WORKERS_PER_QUEUE               2
 
+
+#define SYSTEM_WQ                       0
 /**********************
  *      TYPEDEFS
  **********************/

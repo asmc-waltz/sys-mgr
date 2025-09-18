@@ -28,7 +28,6 @@
 #include "comm/f_comm.h"
 #include "comm/cmd_payload.h"
 #include "sched/workqueue.h"
-#include "task.h"
 
 /*********************
  *      DEFINES

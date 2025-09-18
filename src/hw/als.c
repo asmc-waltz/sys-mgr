@@ -10,7 +10,7 @@
 #if defined(LOG_LEVEL)
 #warning "LOG_LEVEL defined locally will override the global setting in this file"
 #endif
-#include <log.h>
+#include "log.h"
 
 #include <stdint.h>
 #include <string.h>
