@@ -10,7 +10,7 @@
 #if defined(LOG_LEVEL)
 #warning "LOG_LEVEL defined locally will override the global setting in this file"
 #endif
-#include <log.h>
+#include "log.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,8 +18,10 @@
 #include <string.h>
 #include <errno.h>
 
-#include <comm/dbus_comm.h>
-#include <comm/cmd_payload.h>
+#include "comm/dbus_comm.h"
+#include "comm/cmd_payload.h"
+#include "sched/workqueue.h"
+#include "task.h"
 
 /*********************
  *      DEFINES
@@ -162,7 +164,7 @@ int32_t create_local_simple_task(uint8_t priority, uint8_t duration, \
         return -EINVAL;
     }
 
-    push_work(work);
+    push_work(get_wq(SYSTEM_WQ), work);
 
     return 0;
 }
@@ -185,7 +187,7 @@ int32_t create_remote_task(uint8_t priority, void *data)
         return -EINVAL;
     }
 
-    push_work(work);
+    push_work(get_wq(SYSTEM_WQ), work);
 
     return 0;
 }

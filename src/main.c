@@ -10,7 +10,7 @@
 #if defined(LOG_LEVEL)
 #warning "LOG_LEVEL defined locally will override the global setting in this file"
 #endif
-#include <log.h>
+#include "log.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,12 +22,12 @@
 #include <sys/epoll.h>
 #include <dbus/dbus.h>
 
-#include <comm/dbus_comm.h>
-#include <comm/f_comm.h>
-#include <comm/net/network.h>
-#include <comm/cmd_payload.h>
-#include <sched/workqueue.h>
-#include <sched/task.h>
+#include "comm/dbus_comm.h"
+#include "comm/f_comm.h"
+#include "comm/net/network.h"
+#include "comm/cmd_payload.h"
+#include "sched/workqueue.h"
+#include "task.h"
 
 /*********************
  *      DEFINES
@@ -46,6 +46,7 @@ volatile sig_atomic_t g_run = 1;
 /**********************
  *  STATIC PROTOTYPES
  **********************/
+static void service_shutdown_flow();
 
 /**********************
  *  STATIC VARIABLES
@@ -63,9 +64,7 @@ static void sig_handler(int32_t sig)
     switch (sig) {
         case SIGINT:
             LOG_WARN("[+] Received SIGINT (Ctrl+C). Exiting...");
-            g_run = 0;
-            event_set(event_fd, SIGINT);
-            workqueue_handler_wakeup();
+            service_shutdown_flow();
             break;
         case SIGTERM:
             LOG_WARN("[+] Received SIGTERM. Shutdown...");
@@ -100,10 +99,6 @@ static int32_t setup_signal_handler()
     return 0;
 }
 
-// TODO: create thread pool
-    pthread_t task_pool_0;
-    pthread_t task_pool_1;
-
 static int32_t service_startup_flow(void)
 {
     int32_t ret;
@@ -116,17 +111,9 @@ static int32_t service_startup_flow(void)
         goto exit_err;
     }
 
-    /* Create main task handler thread */
-    ret = pthread_create(&task_pool_0, NULL, workqueue_handler, NULL);
+    ret = workqueue_init();
     if (ret) {
-        LOG_FATAL("Failed to create worker thread: %s", strerror(ret));
-        goto exit_event;
-    }
-
-    /* Create main task handler thread */
-    ret = pthread_create(&task_pool_1, NULL, workqueue_handler, NULL);
-    if (ret) {
-        LOG_FATAL("Failed to create worker thread: %s", strerror(ret));
+        LOG_FATAL("Failed to initialize workqueues, ret=%d", ret);
         goto exit_event;
     }
 
@@ -155,9 +142,7 @@ exit_dbus:
     event_set(event_fd, SIGUSR1);
 
 exit_workqueue:
-    workqueue_handler_wakeup();
-    pthread_join(task_pool_0, NULL);
-    pthread_join(task_pool_1, NULL);
+    workqueue_deinit();
 
 exit_event:
     cleanup_event_file();
@@ -181,21 +166,20 @@ static void service_shutdown_flow(void)
     create_local_simple_task(WORK_PRIO_NORMAL, WORK_DURATION_SHORT, OP_AUDIO_RELEASE);
 
     /* Wait until workqueue is fully drained */
-    cnt = workqueue_active_count();
+    cnt = workqueue_active_count(get_wq(SYSTEM_WQ));
     while (cnt) {
         LOG_TRACE("Waiting for workqueue to be free, remaining work %d", cnt);
         usleep(100000);
-        cnt = workqueue_active_count();
+        cnt = workqueue_active_count(get_wq(SYSTEM_WQ));
     }
 
     /* Stop background threads and notify shutdown */
     g_run = 0;                      /* Signal threads to stop */
-    event_set(event_fd, SIGINT);    /* Notify DBus/system about shutdown */
-    workqueue_handler_wakeup();     /* Wake up any waiting workqueue threads */
 
-    // TODO:
-    pthread_join(task_pool_0, NULL);
-    pthread_join(task_pool_1, NULL);
+    event_set(event_fd, SIGINT);    /* Notify DBus/system about shutdown */
+
+    workqueue_deinit();
+
     cleanup_event_file();
 
     LOG_INFO("Service shutdown flow completed");

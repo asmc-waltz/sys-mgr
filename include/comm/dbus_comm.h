@@ -11,9 +11,7 @@
 #include <stdint.h>
 #include <dbus/dbus.h>
 
-#include <comm/cmd_payload.h>
-#include <sched/workqueue.h>
-#include <sched/task.h>
+#include "comm/cmd_payload.h"
 
 /*********************
  *      DEFINES
