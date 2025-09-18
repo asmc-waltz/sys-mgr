@@ -10,7 +10,7 @@
 #if defined(LOG_LEVEL)
 #warning "LOG_LEVEL defined locally will override the global setting in this file"
 #endif
-#include <log.h>
+#include "log.h"
 
 #include <signal.h>
 #include <stdlib.h>
@@ -20,9 +20,9 @@
 #include <stdatomic.h>
 #include <stdbool.h>
 
-#include <comm/dbus_comm.h>
-#include <sched/workqueue.h>
-#include <sched/task.h>
+#include "comm/dbus_comm.h"
+#include "sched/workqueue.h"
+#include "task.h"
 
 /*********************
  *      DEFINES
@@ -61,6 +61,14 @@ void *workqueue_handler(void* arg)
     work_t *w = NULL;
     int32_t ret = 0;
     pthread_t tid = pthread_self();
+    workqueue_t *wq = NULL;
+
+    wq = (workqueue_t *)arg;
+    if (wq == NULL) {
+        LOG_FATAL("Workqueue handler unable to get workqueue");
+        return NULL;
+    }
+
     LOG_INFO("Workqueue handler started - thread ID: %lu", (unsigned long)tid);
 
     // LOG_INFO("Task handler is running...");
@@ -69,7 +77,7 @@ void *workqueue_handler(void* arg)
         // usleep(200000);
         LOG_TRACE("Workqueue handler ID [%lu] --> waiting for new task...", \
                   (unsigned long)tid);
-        w = pop_work_wait_safe();
+        w = pop_work_wait_safe(wq);
         /*
          * After a work item is popped from the workqueue, it is no longer
          * linked to the work list. This means:
@@ -97,7 +105,7 @@ void *workqueue_handler(void* arg)
                      "\tDuration [%d] -> DELETE", \
                      w->opcode, w->prio , w->duration);
 
-            delete_work(w);
+            workqueue_complete_work(wq, w);
         } else {
             /*
              * Run blocking task; return after it completes other tasks in
@@ -111,7 +119,7 @@ void *workqueue_handler(void* arg)
                           (unsigned long)tid, ret, w->type, w->prio, w->opcode);
             }
             // The working data structures for any tasks need to be freed
-            delete_work(w);
+            workqueue_complete_work(wq, w);
         }
     };
 
