@@ -61,7 +61,7 @@
  *  GLOBAL PROTOTYPES
  **********************/
 int32_t add_dbus_match_rule(DBusConnection *conn, const char *rule);
-int32_t dbus_fn_thread_handler();
+void *dbus_fn_thread_handler();
 
 int32_t dbus_method_call(const char *destination, const char *path, \
                          const char *iface, const char *method, \

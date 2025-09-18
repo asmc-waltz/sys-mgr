@@ -17,6 +17,8 @@
 #include <glib-object.h>
 #include <NetworkManager.h>
 
+#include "comm/net/network.h"
+
 /*********************
  *      DEFINES
  *********************/

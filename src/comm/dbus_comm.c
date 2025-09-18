@@ -506,7 +506,7 @@ int32_t add_dbus_match_rule(DBusConnection *conn, const char *rule)
  * to handle DBus communication, including method calls from other services
  * and signal events registered for this service.
  */
-int32_t dbus_fn_thread_handler()
+void *dbus_fn_thread_handler()
 {
     DBusConnection *conn;
     int32_t ret;
@@ -514,30 +514,32 @@ int32_t dbus_fn_thread_handler()
     conn = setup_dbus_connection();
     if (!conn) {
         LOG_FATAL("Unable to establish connection with DBus");
-        return -EIO;
+        goto exit_error;
     }
 
     ret = set_dbus_signal_match_rule(conn);
     if (ret) {
         LOG_ERROR("DBus add signal match rule Error: %d", ret);
-        return ret;
+        goto exit_error;
     }
 
     ret = set_dbus_connection(conn);
     if (ret) {
         LOG_FATAL("Unable to save connection with DBus: %d", ret);
-        return ret;
+        goto exit_error;
     }
 
     // This loop processes DBus messages
     ret = dbus_listener_loop(conn);
     if (ret) {
         LOG_FATAL("Failed to create DBus listener");
-        return ret;
+        goto exit_error;
     }
 
     dbus_connection_unref(conn);
-    return 0;
+
+exit_error:
+    return NULL;
 }
 
 /*

@@ -6,7 +6,7 @@
 /*********************
  *      INCLUDES
  *********************/
-#define LOG_LEVEL LOG_LEVEL_TRACE
+// #define LOG_LEVEL LOG_LEVEL_TRACE
 #if defined(LOG_LEVEL)
 #warning "LOG_LEVEL defined locally will override the global setting in this file"
 #endif
@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <pthread.h>
+#include <string.h>
 #include <signal.h>
 #include <stdatomic.h>
 #include <errno.h>
@@ -233,7 +234,7 @@ int32_t workqueue_active_count(workqueue_t *wq)
 {
     if (wq == NULL) {
         LOG_ERROR("Workqueue data is invalid");
-        return;
+        return -EINVAL;
     } 
     return atomic_load(&wq->active_cnt);
 }

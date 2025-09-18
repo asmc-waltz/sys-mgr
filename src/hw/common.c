@@ -17,6 +17,7 @@
 #include <string.h>
 #include <signal.h>
 #include <errno.h>
+#include <unistd.h>
 
 #include "comm/f_comm.h"
 #include "hw/common.h"
